@@ -50,19 +50,12 @@ import com.example.data.local.entity.DailyCheckInEntity
 import com.example.domain.agent.model.CycleTexture
 import com.example.ui.components.CareActionRow
 import com.example.ui.components.CycleTextureGauge
-import com.example.ui.theme.CalmTeal
-import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DropCoral
 import com.example.ui.theme.ForestGreenAccent
-import com.example.ui.theme.ForestGreenDeep
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
 import com.example.ui.theme.SpottingRose
-import com.example.ui.theme.WarningAmber
 import com.example.ui.theme.WisteriaLavender
-import com.example.ui.theme.WisteriaPurple
-import com.example.ui.theme.WisteriaSoftLilac
-import com.example.ui.theme.WisteriaViolet
 import com.example.ui.viewmodel.CheckInUiState
 
 @Composable
@@ -214,9 +207,9 @@ fun DailySummaryScreen(
                         Button(
                             onClick = onOpenTakeover,
                             modifier = Modifier.testTag("open_checkin_banner_button"),
-                            colors = ButtonDefaults.buttonColors(containerColor = WisteriaViolet)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("Open 3-Second Check-In", color = Color.White)
+                            Text("Open 3-Second Check-In", color = MaterialTheme.colorScheme.onPrimary)
                         }
                     }
                 }
@@ -300,7 +293,7 @@ fun DailySummaryScreen(
                             Icon(
                                 imageVector = Icons.Default.RocketLaunch,
                                 contentDescription = "Cloud Run",
-                                tint = WisteriaLavender,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -323,10 +316,10 @@ fun DailySummaryScreen(
                         Button(
                             onClick = onTriggerCloudRun,
                             modifier = Modifier.testTag("trigger_cloudrun_button"),
-                            colors = ButtonDefaults.buttonColors(containerColor = WisteriaViolet),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text("Dispatch Job", fontSize = 11.sp, color = Color.White)
+                            Text("Dispatch Job", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimary)
                         }
                     }
                 }

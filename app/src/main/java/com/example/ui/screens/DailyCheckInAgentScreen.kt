@@ -25,11 +25,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -66,9 +72,6 @@ import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
 import com.example.ui.theme.SpottingRose
 import com.example.ui.theme.WisteriaLavender
-import com.example.ui.theme.WisteriaPurple
-import com.example.ui.theme.WisteriaSoftLilac
-import com.example.ui.theme.WisteriaViolet
 import com.example.ui.viewmodel.CheckInUiState
 
 @Composable
@@ -148,7 +151,7 @@ fun DailyCheckInAgentScreen(
                 ) {
                     QuickPulseButton(
                         rating = 1,
-                        emoji = "⚡",
+                        icon = Icons.Default.Bolt,
                         label = "Crash",
                         bgColor = DropCoral.copy(alpha = 0.22f),
                         activeColor = DropCoral,
@@ -157,7 +160,7 @@ fun DailyCheckInAgentScreen(
                     )
                     QuickPulseButton(
                         rating = 2,
-                        emoji = "☁️",
+                        icon = Icons.Default.Cloud,
                         label = "Heavy",
                         bgColor = SpottingRose.copy(alpha = 0.22f),
                         activeColor = SpottingRose,
@@ -166,7 +169,7 @@ fun DailyCheckInAgentScreen(
                     )
                     QuickPulseButton(
                         rating = 3,
-                        emoji = "🌱",
+                        icon = Icons.Default.Eco,
                         label = "Baseline",
                         bgColor = ForestGreenAccent.copy(alpha = 0.22f),
                         activeColor = ForestGreenMint,
@@ -175,7 +178,7 @@ fun DailyCheckInAgentScreen(
                     )
                     QuickPulseButton(
                         rating = 4,
-                        emoji = "✨",
+                        icon = Icons.Default.AutoAwesome,
                         label = "Steady",
                         bgColor = ForestGreenSage.copy(alpha = 0.22f),
                         activeColor = ForestGreenSage,
@@ -184,7 +187,7 @@ fun DailyCheckInAgentScreen(
                     )
                     QuickPulseButton(
                         rating = 5,
-                        emoji = "🌸",
+                        icon = Icons.Default.Favorite,
                         label = "Alive",
                         bgColor = WisteriaLavender.copy(alpha = 0.25f),
                         activeColor = WisteriaLavender,
@@ -202,7 +205,7 @@ fun DailyCheckInAgentScreen(
                 ) {
                     item {
                         QuickPill(
-                            icon = "🌿",
+                            icon = Icons.Default.Spa,
                             label = "Hydrated & Rested",
                             onClick = { onSendMessage("I've prioritized rest and hydration") },
                             testTag = "chip_rest_hydration"
@@ -210,7 +213,7 @@ fun DailyCheckInAgentScreen(
                     }
                     item {
                         QuickPill(
-                            icon = "🩸",
+                            icon = Icons.Default.WaterDrop,
                             label = "Spotting Started",
                             onClick = { onSendMessage("Spotting started today") },
                             testTag = "chip_spotting"
@@ -218,7 +221,7 @@ fun DailyCheckInAgentScreen(
                     }
                     item {
                         QuickPill(
-                            icon = "🛡️",
+                            icon = Icons.Default.Shield,
                             label = "Need Low Bandwidth",
                             onClick = { onSendMessage("Brain fog is heavy, need low bandwidth") },
                             testTag = "chip_shield"
@@ -237,7 +240,7 @@ fun DailyCheckInAgentScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp),
                     shape = RoundedCornerShape(16.dp),
-                    color = WisteriaViolet.copy(alpha = 0.15f),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                     border = CardDefaults.outlinedCardBorder()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -272,7 +275,7 @@ fun DailyCheckInAgentScreen(
                                 Icon(
                                     imageVector = if (action.isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                     contentDescription = null,
-                                    tint = if (action.isCompleted) ForestGreenMint else WisteriaLavender,
+                                    tint = if (action.isCompleted) ForestGreenMint else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -315,7 +318,7 @@ fun DailyCheckInAgentScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
-                            color = WisteriaLavender
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
@@ -356,7 +359,7 @@ fun DailyCheckInAgentScreen(
                         .testTag("checkin_input_field"),
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = WisteriaViolet,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                     ),
                     maxLines = 2
@@ -372,7 +375,7 @@ fun DailyCheckInAgentScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(WisteriaViolet)
+                        .background(MaterialTheme.colorScheme.primary)
                         .testTag("send_message_button"),
                     enabled = inputText.isNotBlank() && !uiState.isAgentActive
                 ) {
@@ -391,7 +394,7 @@ fun DailyCheckInAgentScreen(
 @Composable
 private fun QuickPulseButton(
     rating: Int,
-    emoji: String,
+    icon: ImageVector,
     label: String,
     bgColor: Color,
     activeColor: Color,
@@ -409,13 +412,19 @@ private fun QuickPulseButton(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "$rating $emoji",
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = activeColor,
+                    modifier = Modifier.size(14.dp)
                 )
-            )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = rating.toString(),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                )
+            }
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(
@@ -429,7 +438,7 @@ private fun QuickPulseButton(
 
 @Composable
 private fun QuickPill(
-    icon: String,
+    icon: ImageVector,
     label: String,
     testTag: String,
     onClick: () -> Unit
@@ -444,14 +453,16 @@ private fun QuickPill(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = icon, fontSize = 12.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(13.dp)
+            )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 11.sp
-                )
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
             )
         }
     }
@@ -477,13 +488,13 @@ fun CalmMessageBubble(
                     modifier = Modifier
                         .size(18.dp)
                         .clip(CircleShape)
-                        .background(WisteriaViolet),
+                        .background(MaterialTheme.colorScheme.primary),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Spa,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(11.dp)
                     )
                 }
@@ -492,7 +503,7 @@ fun CalmMessageBubble(
                     text = "Wisteria",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.SemiBold,
-                        color = WisteriaLavender
+                        color = MaterialTheme.colorScheme.primary
                     )
                 )
             } else {
@@ -515,7 +526,7 @@ fun CalmMessageBubble(
             ),
             colors = CardDefaults.cardColors(
                 containerColor = if (isUser)
-                    WisteriaViolet
+                    MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
             ),
@@ -525,7 +536,7 @@ fun CalmMessageBubble(
                 Text(
                     text = message.text,
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurface,
+                        color = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                         lineHeight = 20.sp,
                         fontSize = 14.sp
                     )

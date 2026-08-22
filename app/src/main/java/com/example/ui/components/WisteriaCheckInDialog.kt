@@ -20,24 +20,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Spa
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,15 +55,10 @@ import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DropCoral
 import com.example.ui.theme.ForestGreenAccent
-import com.example.ui.theme.ForestGreenDeep
 import com.example.ui.theme.ForestGreenMint
-import com.example.ui.theme.ForestGreenSage
 import com.example.ui.theme.SpottingRose
 import com.example.ui.theme.WisteriaLavender
-import com.example.ui.theme.WisteriaLightViolet
-import com.example.ui.theme.WisteriaPurple
 import com.example.ui.theme.WisteriaSoftLilac
-import com.example.ui.theme.WisteriaViolet
 
 @Composable
 fun FullScreenCheckInDialog(
@@ -79,23 +70,24 @@ fun FullScreenCheckInDialog(
     if (!isOpen) return
 
     Dialog(
-        onDismissRequest = { /* Cannot be dismissed without logging */ },
+        onDismissRequest = onDismiss,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
-            dismissOnBackPress = false,
+            dismissOnBackPress = true,
             dismissOnClickOutside = false
         )
     ) {
+        val colorScheme = MaterialTheme.colorScheme
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            DarkBackground,
-                            WisteriaPurple.copy(alpha = 0.85f),
-                            ForestGreenDeep.copy(alpha = 0.95f),
-                            DarkBackground
+                            colorScheme.background,
+                            colorScheme.primaryContainer.copy(alpha = 0.85f),
+                            colorScheme.secondaryContainer.copy(alpha = 0.9f),
+                            colorScheme.background
                         )
                     )
                 )
@@ -115,7 +107,7 @@ fun FullScreenCheckInDialog(
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(WisteriaViolet, ForestGreenAccent)
+                                colors = listOf(colorScheme.primary, colorScheme.secondary)
                             )
                         ),
                     contentAlignment = Alignment.Center
@@ -123,7 +115,7 @@ fun FullScreenCheckInDialog(
                     Icon(
                         imageVector = Icons.Default.Spa,
                         contentDescription = "Wisteria Cascading Motif",
-                        tint = WisteriaSoftLilac,
+                        tint = colorScheme.onPrimary,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -133,7 +125,7 @@ fun FullScreenCheckInDialog(
                 Text(
                     text = "Wisteria",
                     style = MaterialTheme.typography.titleLarge.copy(
-                        color = Color.White,
+                        color = colorScheme.onBackground,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
@@ -142,7 +134,7 @@ fun FullScreenCheckInDialog(
                 Text(
                     text = "Full-screen daily check-in • 3 seconds max",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = ForestGreenMint,
+                        color = colorScheme.tertiary,
                         letterSpacing = 0.5.sp
                     )
                 )
@@ -153,9 +145,9 @@ fun FullScreenCheckInDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = DarkSurface.copy(alpha = 0.9f)
+                        containerColor = colorScheme.surface.copy(alpha = 0.94f)
                     ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, WisteriaLavender.copy(alpha = 0.3f))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.3f))
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
@@ -167,7 +159,7 @@ fun FullScreenCheckInDialog(
                             else
                                 "How are you feeling today?",
                             style = MaterialTheme.typography.titleMedium.copy(
-                                color = Color.White,
+                                color = colorScheme.onSurface,
                                 fontWeight = FontWeight.SemiBold,
                                 textAlign = TextAlign.Center
                             )
@@ -180,15 +172,17 @@ fun FullScreenCheckInDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
+                            data class RatingOption(val num: Int, val icon: ImageVector, val desc: String)
                             val options = listOf(
-                                Triple(1, "⚡", "Crash / Heavy"),
-                                Triple(2, "☁️", "Foggy / Spotting"),
-                                Triple(3, "🌱", "Baseline Okay"),
-                                Triple(4, "✨", "Clear / Steady"),
-                                Triple(5, "🌸", "Alive & Radiant")
+                                RatingOption(1, Icons.Default.Bolt, "Crash / Heavy"),
+                                RatingOption(2, Icons.Default.Cloud, "Foggy / Spotting"),
+                                RatingOption(3, Icons.Default.Eco, "Baseline Okay"),
+                                RatingOption(4, Icons.Default.AutoAwesome, "Clear / Steady"),
+                                RatingOption(5, Icons.Default.Favorite, "Alive & Radiant")
                             )
 
-                            options.forEach { (num, emoji, desc) ->
+                            options.forEach { (num, icon, desc) ->
+                                val optionColor = if (num <= 2) DropCoral else ForestGreenAccent
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
@@ -196,22 +190,21 @@ fun FullScreenCheckInDialog(
                                         .clickable {
                                             onSubmitInput("$num ($desc)")
                                         }
-                                        .background(
-                                            if (num <= 2) DropCoral.copy(alpha = 0.15f)
-                                            else ForestGreenAccent.copy(alpha = 0.2f)
-                                        )
+                                        .background(optionColor.copy(alpha = if (num <= 2) 0.15f else 0.2f))
                                         .padding(vertical = 12.dp, horizontal = 10.dp)
                                         .testTag("tap_option_$num")
                                 ) {
-                                    Text(
-                                        text = emoji,
-                                        fontSize = 24.sp
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = desc,
+                                        tint = optionColor,
+                                        modifier = Modifier.size(22.dp)
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = num.toString(),
                                         style = MaterialTheme.typography.titleSmall.copy(
-                                            color = Color.White,
+                                            color = colorScheme.onSurface,
                                             fontWeight = FontWeight.Bold
                                         )
                                     )
@@ -225,7 +218,7 @@ fun FullScreenCheckInDialog(
                         Text(
                             text = "Or tap a quick texture signal:",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                color = WisteriaSoftLilac.copy(alpha = 0.7f)
+                                color = colorScheme.onSurfaceVariant
                             )
                         )
 
@@ -256,15 +249,23 @@ fun FullScreenCheckInDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Dismiss bypass for emergency navigation
-                IconButton(
+                // Always-visible, honest way out — this is a nudge, not a trap.
+                TextButton(
                     onClick = onDismiss,
                     modifier = Modifier.testTag("dismiss_takeover_button")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close check-in",
-                        tint = WisteriaLavender.copy(alpha = 0.6f)
+                        contentDescription = null,
+                        tint = colorScheme.onBackground.copy(alpha = 0.8f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Not now",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            color = colorScheme.onBackground.copy(alpha = 0.8f)
+                        )
                     )
                 }
             }

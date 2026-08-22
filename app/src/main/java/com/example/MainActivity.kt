@@ -20,8 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -46,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,14 +58,12 @@ import com.example.ui.screens.DailySummaryScreen
 import com.example.ui.theme.DropCoral
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.MyApplicationTheme
-import com.example.ui.theme.WisteriaLavender
-import com.example.ui.theme.WisteriaViolet
 import com.example.ui.viewmodel.DailyCheckInViewModel
 
 enum class WisteriaTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     DAILY_PULSE("Check-In", Icons.Default.Spa),
     INSIGHTS("Insights", Icons.Default.AutoAwesome),
-    CYCLE_RHYTHM("Cycle & Care", Icons.Default.Psychology)
+    CYCLE_RHYTHM("Cycle & Care", Icons.Default.CalendarMonth)
 }
 
 class MainActivity : ComponentActivity() {
@@ -103,7 +100,7 @@ fun WisteriaMainApp(
                     title = { Text("Agent Architecture", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
                     navigationIcon = {
                         TextButton(onClick = { showArchitecture = false }) {
-                            Text("Back", color = WisteriaLavender)
+                            Text("Back", color = MaterialTheme.colorScheme.primary)
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -129,7 +126,7 @@ fun WisteriaMainApp(
                         Icon(
                             imageVector = Icons.Default.Spa,
                             contentDescription = null,
-                            tint = WisteriaLavender,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -164,13 +161,13 @@ fun WisteriaMainApp(
                             },
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("View Full Architecture Spec", color = WisteriaLavender, fontSize = 12.sp)
+                            Text("View Full Architecture Spec", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = { showInfoDialog = false }) {
-                        Text("Close", color = WisteriaLavender)
+                        Text("Close", color = MaterialTheme.colorScheme.primary)
                     }
                 }
             )
@@ -188,13 +185,13 @@ fun WisteriaMainApp(
                                 modifier = Modifier
                                     .size(28.dp)
                                     .clip(CircleShape)
-                                    .background(WisteriaViolet),
+                                    .background(MaterialTheme.colorScheme.primary),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Spa,
                                     contentDescription = "Wisteria",
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -272,13 +269,13 @@ fun WisteriaMainApp(
                             label = {
                                 Text(
                                     text = tab.title,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp)
+                                    style = MaterialTheme.typography.labelSmall
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color.White,
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimary,
                                 selectedTextColor = ForestGreenMint,
-                                indicatorColor = WisteriaViolet,
+                                indicatorColor = MaterialTheme.colorScheme.primary,
                                 unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),

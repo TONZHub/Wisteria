@@ -64,20 +64,15 @@ import com.example.domain.agent.model.AgentExecutionState
 import com.example.domain.agent.model.CycleTexture
 import com.example.domain.agent.model.ToolCallRecord
 import com.example.ui.theme.CalmTeal
-import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DropCoral
 import com.example.ui.theme.ForestGreenAccent
-import com.example.ui.theme.ForestGreenDeep
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
 import com.example.ui.theme.PeriodCrimson
 import com.example.ui.theme.SpottingRose
 import com.example.ui.theme.WarningAmber
 import com.example.ui.theme.WisteriaLavender
-import com.example.ui.theme.WisteriaLightViolet
-import com.example.ui.theme.WisteriaPurple
 import com.example.ui.theme.WisteriaSoftLilac
-import com.example.ui.theme.WisteriaViolet
 
 @Composable
 fun CycleTextureGauge(
@@ -114,6 +109,7 @@ fun CycleTextureGauge(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            val gaugeStart = MaterialTheme.colorScheme.primary
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.size(92.dp)
@@ -126,7 +122,7 @@ fun CycleTextureGauge(
                     )
                     drawArc(
                         brush = Brush.sweepGradient(
-                            listOf(WisteriaViolet, ForestGreenAccent, textureColor)
+                            listOf(gaugeStart, ForestGreenAccent, textureColor)
                         ),
                         startAngle = -90f,
                         sweepAngle = (rating / 5f) * 360f,
@@ -228,13 +224,13 @@ fun AgentReasoningCard(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(WisteriaViolet.copy(alpha = 0.25f)),
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Psychology,
                             contentDescription = "ADK Thought Trace",
-                            tint = WisteriaLavender,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -313,7 +309,7 @@ fun ToolExecutionChip(
                 imageVector = Icons.Default.Terminal,
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = WisteriaLavender
+                tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(

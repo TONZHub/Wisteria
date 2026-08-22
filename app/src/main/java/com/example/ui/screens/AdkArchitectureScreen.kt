@@ -46,14 +46,11 @@ import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.AgentMemoryEntity
 import com.example.ui.theme.DropCoral
 import com.example.ui.theme.ForestGreenAccent
-import com.example.ui.theme.ForestGreenDeep
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
 import com.example.ui.theme.SpottingRose
 import com.example.ui.theme.WisteriaLavender
-import com.example.ui.theme.WisteriaPurple
 import com.example.ui.theme.WisteriaSoftLilac
-import com.example.ui.theme.WisteriaViolet
 import com.example.ui.viewmodel.CheckInUiState
 
 @Composable
@@ -88,13 +85,13 @@ fun AdkArchitectureScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(WisteriaViolet),
+                                .background(MaterialTheme.colorScheme.primary),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Spa,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -167,14 +164,14 @@ fun AdkArchitectureScreen(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = WisteriaViolet,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         text = "${index + 1}",
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            color = Color.White,
+                                            color = MaterialTheme.colorScheme.onPrimary,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 10.sp
                                         )
@@ -318,10 +315,10 @@ fun AdkArchitectureScreen(
                             Button(
                                 onClick = onTriggerCloudRun,
                                 modifier = Modifier.testTag("test_cloudrun_dispatch_btn"),
-                                colors = ButtonDefaults.buttonColors(containerColor = WisteriaViolet),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                             ) {
-                                Text("Run Worker", fontSize = 10.sp, color = Color.White)
+                                Text("Run Worker", fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimary)
                             }
                         }
                     }

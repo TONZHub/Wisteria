@@ -30,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,7 +40,6 @@ import com.example.ui.theme.ForestGreenAccent
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.SpottingRose
 import com.example.ui.theme.WisteriaLavender
-import com.example.ui.theme.WisteriaViolet
 import com.example.ui.viewmodel.CheckInUiState
 
 @Composable
@@ -81,13 +79,13 @@ fun CyclePatternMemoryScreen(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(WisteriaViolet),
+                                    .background(MaterialTheme.colorScheme.primary),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Spa,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -244,7 +242,7 @@ fun CyclePatternMemoryScreen(
                             Icon(
                                 imageVector = Icons.Default.Bookmark,
                                 contentDescription = null,
-                                tint = WisteriaLavender,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
