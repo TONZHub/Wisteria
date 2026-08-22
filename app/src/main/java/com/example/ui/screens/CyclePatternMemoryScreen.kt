@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.AgentMemoryEntity
@@ -71,10 +72,12 @@ fun CyclePatternMemoryScreen(
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(34.dp)
@@ -93,17 +96,23 @@ fun CyclePatternMemoryScreen(
                             Column {
                                 Text(
                                     text = "Your Cycle Texture",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = "Adapted to you • Never 28-day textbook math",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = ForestGreenMint,
                                         fontSize = 11.sp
-                                    )
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -156,10 +165,12 @@ fun CyclePatternMemoryScreen(
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(30.dp)
@@ -178,7 +189,9 @@ fun CyclePatternMemoryScreen(
                             Column {
                                 Text(
                                     text = phaseTitle,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = duration,
@@ -189,6 +202,8 @@ fun CyclePatternMemoryScreen(
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -201,6 +216,8 @@ fun CyclePatternMemoryScreen(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 10.sp
                                 ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
