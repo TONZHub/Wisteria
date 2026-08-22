@@ -82,8 +82,12 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
 
     private fun loadCycleMemory() {
         viewModelScope.launch {
-            val phases = repository.getCycleMemorySnapshot()
-            _uiState.value = _uiState.value.copy(cyclePhases = phases)
+            try {
+                val phases = repository.getCycleMemorySnapshot()
+                _uiState.value = _uiState.value.copy(cyclePhases = phases)
+            } catch (e: Exception) {
+                // Firestore not reachable/configured yet - screens fall back to their own defaults.
+            }
         }
     }
 
@@ -194,12 +198,18 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     fun triggerFirestoreSync() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(agentStatusMessage = "Syncing cycle timeline to Firestore...")
-            val record = repository.triggerManualFirestoreSync(_uiState.value.latestPulse)
-            val logs = _uiState.value.firestoreSyncLogs + record
-            _uiState.value = _uiState.value.copy(
-                firestoreSyncLogs = logs,
-                agentStatusMessage = "Firestore synced to ${record.documentPath}"
-            )
+            try {
+                val record = repository.triggerManualFirestoreSync(_uiState.value.latestPulse)
+                val logs = _uiState.value.firestoreSyncLogs + record
+                _uiState.value = _uiState.value.copy(
+                    firestoreSyncLogs = logs,
+                    agentStatusMessage = "Firestore synced to ${record.documentPath}"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    agentStatusMessage = "Firestore sync failed: ${e.message ?: "check google-services.json is configured"}"
+                )
+            }
         }
     }
 
