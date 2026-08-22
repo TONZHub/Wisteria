@@ -62,6 +62,7 @@ class WisteriaRepository(
         },
         FirestoreSyncTool { pulse ->
             val record = firestoreService.syncDailyCheckIn("zoe_wisteria_companion", pulse)
+            markTodaysCheckInSynced(record.documentPath)
             record.documentPath
         },
         CloudRunWorkflowTool { workflowType ->
@@ -99,8 +100,8 @@ class WisteriaRepository(
             lowEffortMeal = pulse.lowEffortMealSuggested,
             comfortContent = pulse.comfortContent,
             confidenceScore = pulse.confidenceScore,
-            syncStatus = "SYNCED_TO_FIRESTORE",
-            firestoreDocPath = "users/zoe_wisteria_companion/cycle_timeline/$todayStr",
+            syncStatus = "PENDING_SYNC",
+            firestoreDocPath = null,
             cloudRunJobId = "crun-agent-auto"
         )
         checkInDao.insertCheckIn(entity)
@@ -124,12 +125,22 @@ class WisteriaRepository(
         return entity
     }
 
+    private suspend fun markTodaysCheckInSynced(documentPath: String) {
+        val todayStr = getTodayDateString()
+        val existing = checkInDao.getCheckInByDate(todayStr) ?: return
+        checkInDao.updateCheckIn(
+            existing.copy(syncStatus = "SYNCED_TO_FIRESTORE", firestoreDocPath = documentPath)
+        )
+    }
+
     suspend fun triggerManualCloudRunSync(): CloudRunJobExecution {
         return cloudRunService.dispatchWorkflowJob("pmdd_pattern_analysis", mapOf("source" to "CompanionUI"))
     }
 
     suspend fun triggerManualFirestoreSync(pulse: DailyPulseData): FirestoreSyncRecord {
-        return firestoreService.syncDailyCheckIn("zoe_wisteria_companion", pulse)
+        val record = firestoreService.syncDailyCheckIn("zoe_wisteria_companion", pulse)
+        markTodaysCheckInSynced(record.documentPath)
+        return record
     }
 
     suspend fun getCycleMemorySnapshot(): List<Map<String, Any>> {

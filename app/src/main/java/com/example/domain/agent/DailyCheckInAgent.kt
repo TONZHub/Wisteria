@@ -135,11 +135,28 @@ class DailyCheckInAgent(
                     }
                 }
                 "FirestoreSyncTool" -> {
-                    val args = mapOf("payload" to "wisteria_pulse_${extractedPulse.ratingValue}_${extractedPulse.texture.name}")
-                    val result = tool.execute(args)
-                    val record = ToolCallRecord(tool.name, args, result.summary, if (result.success) "SUCCESS" else "FAILED")
-                    executedTools.add(record)
-                    onToolExecuted(record)
+                    val args = mapOf(
+                        "rating" to extractedPulse.ratingValue.toString(),
+                        "texture" to extractedPulse.texture.name,
+                        "textureLabel" to extractedPulse.textureLabel,
+                        "singleInputResponse" to extractedPulse.singleInputResponse,
+                        "agentAcknowledgment" to extractedPulse.agentAcknowledgment,
+                        "isPmddWindowActive" to extractedPulse.isPmddWindowActive.toString(),
+                        "nerveTonicTaken" to extractedPulse.nerveTonicTaken.toString(),
+                        "lowEffortMealSuggested" to extractedPulse.lowEffortMealSuggested,
+                        "comfortContent" to extractedPulse.comfortContent,
+                        "confidenceScore" to extractedPulse.confidenceScore.toString()
+                    )
+                    try {
+                        val result = tool.execute(args)
+                        val record = ToolCallRecord(tool.name, args, result.summary, if (result.success) "SUCCESS" else "FAILED")
+                        executedTools.add(record)
+                        onToolExecuted(record)
+                    } catch (e: Exception) {
+                        val record = ToolCallRecord(tool.name, args, "Firestore sync failed: ${e.message ?: "unknown error"}. Check-in was still saved locally.", "FAILED")
+                        executedTools.add(record)
+                        onToolExecuted(record)
+                    }
                 }
                 "CloudRunWorkflowTool" -> {
                     val args = mapOf("workflowType" to "pmdd_pattern_analysis")

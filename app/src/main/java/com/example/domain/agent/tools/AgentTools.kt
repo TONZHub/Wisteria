@@ -137,10 +137,27 @@ class FirestoreSyncTool(
 ) : AdkAgentTool {
     override val name: String = "FirestoreSyncTool"
     override val description: String = "Persists single-input check-ins, irregular cycle texture timeline, and agent memory state to Google Cloud Firestore."
-    override val parametersSchema: String = "{ documentPath: String, payload: JsonObject }"
+    override val parametersSchema: String = "{ rating: Int, texture: String, textureLabel: String, singleInputResponse: String, agentAcknowledgment: String, isPmddWindowActive: Boolean, nerveTonicTaken: Boolean, lowEffortMealSuggested: String, comfortContent: String, confidenceScore: Float }"
 
     override suspend fun execute(parameters: Map<String, String>): ToolExecutionResult {
-        val docPath = onSyncRequested(DailyPulseData())
+        val texture = try {
+            CycleTexture.valueOf(parameters["texture"] ?: "FEELING_GOOD")
+        } catch (e: Exception) {
+            CycleTexture.FEELING_GOOD
+        }
+        val pulse = DailyPulseData(
+            ratingValue = parameters["rating"]?.toIntOrNull() ?: 3,
+            texture = texture,
+            textureLabel = parameters["textureLabel"] ?: "",
+            singleInputResponse = parameters["singleInputResponse"] ?: "",
+            agentAcknowledgment = parameters["agentAcknowledgment"] ?: "",
+            isPmddWindowActive = parameters["isPmddWindowActive"]?.toBoolean() ?: false,
+            nerveTonicTaken = parameters["nerveTonicTaken"]?.toBoolean() ?: false,
+            lowEffortMealSuggested = parameters["lowEffortMealSuggested"] ?: "",
+            comfortContent = parameters["comfortContent"] ?: "",
+            confidenceScore = parameters["confidenceScore"]?.toFloatOrNull() ?: 0.85f
+        )
+        val docPath = onSyncRequested(pulse)
         return ToolExecutionResult(
             success = true,
             summary = "Synced cycle state & memory to Firestore at path: $docPath",
