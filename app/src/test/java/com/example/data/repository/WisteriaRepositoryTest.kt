@@ -105,4 +105,18 @@ class WisteriaRepositoryTest {
 
         assertEquals(listOf("pmdd_pattern_analysis"), cloudRun.dispatchedWorkflows)
     }
+
+    @Test
+    fun `runNightShift dispatches with real local check-in history, not an empty list`() = runTest {
+        val dao = FakeCheckInDao()
+        val cloudRun = FakeCloudRunWorkflowService()
+        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), cloudRun)
+        repository.saveDailyCheckIn(DailyPulseData(ratingValue = 1, texture = CycleTexture.MEDS_DROP_WINDOW))
+
+        repository.runNightShift()
+
+        assertEquals(listOf("night_shift"), cloudRun.dispatchedWorkflows)
+        assertEquals(1, cloudRun.receivedHistory.single().size)
+        assertEquals(1, cloudRun.receivedHistory.single().first().rating)
+    }
 }

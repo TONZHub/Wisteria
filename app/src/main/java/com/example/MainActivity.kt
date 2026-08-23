@@ -147,7 +147,7 @@ fun WisteriaMainApp(
                         Text(
                             text = "• AI Model: Gemini 3.5 Flash via Google ADK\n" +
                                     "• Architecture: Local Room persistence + Cloud Firestore Sync\n" +
-                                    "• Pattern Rule: Calibrates to irregular spotting & psych meds drop windows\n" +
+                                    "• Pattern Rule: Learns spotting vs period vs drop from check-in history — never 28-day math\n" +
                                     "• Zero Guilt: Done in 3 seconds every day.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -306,7 +306,7 @@ fun WisteriaMainApp(
                         careActions = careActions,
                         onToggleCareAction = { id, done -> viewModel.toggleCareAction(id, done) },
                         onOpenTakeover = { viewModel.openFullScreenTakeover() },
-                        onTriggerCloudRun = { viewModel.triggerCloudRunWorkflow() },
+                        onRunNightShift = { viewModel.runNightShift() },
                         onTriggerFirestoreSync = { viewModel.triggerFirestoreSync() }
                     )
                     WisteriaTab.CYCLE_RHYTHM -> CyclePatternMemoryScreen(

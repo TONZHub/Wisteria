@@ -1,6 +1,8 @@
 package com.example.data.cloud
 
-import kotlinx.coroutines.delay
+import com.example.domain.agent.CheckInHistoryEntry
+import com.example.domain.agent.MorningBrief
+import com.example.domain.agent.NightShiftAnalyzer
 import java.util.UUID
 
 data class CloudRunJobExecution(
@@ -9,43 +11,49 @@ data class CloudRunJobExecution(
     val workflowType: String,
     val executionTimeMs: Long,
     val status: String,
-    val resultSummary: String
+    val resultSummary: String,
+    val morningBrief: MorningBrief? = null
 )
 
 interface CloudRunWorkflowService {
-    suspend fun dispatchWorkflowJob(workflowType: String, parameters: Map<String, String>): CloudRunJobExecution
+    suspend fun dispatchWorkflowJob(
+        workflowType: String,
+        parameters: Map<String, String>,
+        history: List<CheckInHistoryEntry> = emptyList()
+    ): CloudRunJobExecution
+
     fun getCloudRunEndpoint(): String
 }
 
+/**
+ * Runs the Night Shift pattern-recognition worker in-process. This is the real logic,
+ * not a placeholder for it: the same [NightShiftAnalyzer] call is what would run behind
+ * a Cloud Run endpoint in production - deploying it there is a follow-up, not something
+ * to fake with a synthetic delay and a made-up hostname.
+ */
 class CloudRunWorkflowServiceImpl(
-    private val baseUrl: String = "https://wisteria-agent-worker-us-central1.run.app"
+    private val endpoint: String = "local://night-shift"
 ) : CloudRunWorkflowService {
 
     override suspend fun dispatchWorkflowJob(
         workflowType: String,
-        parameters: Map<String, String>
+        parameters: Map<String, String>,
+        history: List<CheckInHistoryEntry>
     ): CloudRunJobExecution {
         val startTime = System.currentTimeMillis()
-        delay(400)
-        val jobId = "crun-job-" + UUID.randomUUID().toString().take(8)
+        val brief = NightShiftAnalyzer.analyze(history)
         val duration = System.currentTimeMillis() - startTime
 
-        val resultSummary = when (workflowType) {
-            "pmdd_pattern_analysis" -> "Cloud Run agent worker executed irregular cycle pattern recognition over Firestore historical check-ins."
-            "nerve_tonic_prewarning" -> "Cloud Run dispatched gentle pre-warning notification: 'Your harder days might be coming. Nerve tonic time?'"
-            "cognitive_shield_activation" -> "Cloud Run background worker lowered daily digital notification volume & queued low-effort meal suggestions."
-            else -> "Cloud Run worker executed job successfully with HTTP 200 OK."
-        }
-
         return CloudRunJobExecution(
-            jobId = jobId,
-            endpointUrl = "$baseUrl/api/v1/workflows/$workflowType",
+            jobId = "night-shift-" + UUID.randomUUID().toString().take(8),
+            endpointUrl = "$endpoint/$workflowType",
             workflowType = workflowType,
             executionTimeMs = duration,
-            status = "COMPLETED_200_OK",
-            resultSummary = resultSummary
+            status = "COMPLETED",
+            resultSummary = brief.body,
+            morningBrief = brief
         )
     }
 
-    override fun getCloudRunEndpoint(): String = baseUrl
+    override fun getCloudRunEndpoint(): String = endpoint
 }

@@ -23,7 +23,7 @@ class RecordSingleInputCheckInTool(
     private val onCheckInRecorded: suspend (DailyPulseData) -> Unit
 ) : AdkAgentTool {
     override val name: String = "RecordSingleInputCheckInTool"
-    override val description: String = "Logs Zoe's 3-second daily single-input check-in (1-5 rating, emoji, or quick word) and determines cycle texture without clinical burden."
+    override val description: String = "Logs a 3-second daily single-input check-in (1-5 rating, emoji, or quick word) and determines cycle texture without clinical burden."
     override val parametersSchema: String = "{ inputVal: String, rating: Int, detectedTexture: String }"
 
     override suspend fun execute(parameters: Map<String, String>): ToolExecutionResult {
@@ -44,7 +44,7 @@ class RecordSingleInputCheckInTool(
                 CycleTexture.FEELING_GOOD -> "Alive & Baseline Okay"
                 CycleTexture.SPOTTING_PHASE -> "Long Spotting Window"
                 CycleTexture.ACTUAL_PERIOD -> "Actual Period"
-                CycleTexture.MEDS_DROP_WINDOW -> "Meds Drop / PMDD Window"
+                CycleTexture.MEDS_DROP_WINDOW -> "Drop Window (PMDD)"
                 CycleTexture.UNKNOWN_CALIBRATING -> "Calibrating"
             },
             singleInputResponse = inputVal,
@@ -69,7 +69,7 @@ class DetectPMDDWindowTool(
     private val onPatternUpdated: suspend (CyclePatternState) -> Unit
 ) : AdkAgentTool {
     override val name: String = "DetectPMDDWindowTool"
-    override val description: String = "Analyzes irregular cycle textures (spotting vs period vs 5-day psych meds drop) from behavioral & symptom history instead of standard 28-day calendar math."
+    override val description: String = "Analyzes irregular cycle textures (spotting vs period vs a learned meds-efficacy drop window) from behavioral & symptom history instead of standard 28-day calendar math."
     override val parametersSchema: String = "{ daysInSpotting: Int, medsEfficacyDrop: Boolean, confidence: Float }"
 
     override suspend fun execute(parameters: Map<String, String>): ToolExecutionResult {
@@ -86,7 +86,7 @@ class DetectPMDDWindowTool(
             nerveTonicRecommended = true,
             cognitiveLoadReduced = medsDrop,
             summaryInsight = if (medsDrop)
-                "Meds drop window active. Lowering demands, avoiding decision fatigue, prioritising nerve tonic."
+                "Meds drop window active. Lowering demands, avoiding decision fatigue, prioritising rest and low-effort care."
             else
                 "Spotting phase tracked (Day $daysInSpotting/10). Approaching medication efficacy drop window in ~${(10 - daysInSpotting).coerceAtLeast(1)} days."
         )
@@ -104,13 +104,13 @@ class TriggerProactiveCareActionTool(
     private val onCareActionTriggered: suspend (CareActionData) -> Unit
 ) : AdkAgentTool {
     override val name: String = "TriggerProactiveCareActionTool"
-    override val description: String = "Executes pre-configured proactive care actions before the PMDD crash (nerve tonic reminder, low-effort comfort meal, cognitive load reduction, comfort queue, trusted contact alert)."
+    override val description: String = "Executes pre-configured proactive care actions before the PMDD crash (rest reminder, low-effort comfort meal, cognitive load reduction, comfort queue, trusted contact alert)."
     override val parametersSchema: String = "{ type: String, title: String, description: String, iconName: String }"
 
     override suspend fun execute(parameters: Map<String, String>): ToolExecutionResult {
-        val type = parameters["type"] ?: "NERVE_TONIC"
-        val title = parameters["title"] ?: "Take Nerve Tonic & Magnesium"
-        val desc = parameters["description"] ?: "Pre-emptive dose before the 5-day drop window hits."
+        val type = parameters["type"] ?: "REST_SUPPORT"
+        val title = parameters["title"] ?: "Prioritize Rest & Hydration"
+        val desc = parameters["description"] ?: "Pre-emptive rest before a drop window hits."
         val icon = parameters["iconName"] ?: "Spa"
 
         val action = CareActionData(
