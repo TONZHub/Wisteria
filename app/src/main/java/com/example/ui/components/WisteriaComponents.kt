@@ -91,9 +91,9 @@ fun CycleTextureGauge(
 
     val stateTitle = when (texture) {
         CycleTexture.FEELING_GOOD -> "Alive & Baseline Okay"
-        CycleTexture.SPOTTING_PHASE -> "10-Day Spotting Window"
+        CycleTexture.SPOTTING_PHASE -> "Spotting Window"
         CycleTexture.ACTUAL_PERIOD -> "Actual Period Flow"
-        CycleTexture.MEDS_DROP_WINDOW -> "5-Day Meds Efficacy Drop"
+        CycleTexture.MEDS_DROP_WINDOW -> "Drop Window (PMDD)"
         CycleTexture.UNKNOWN_CALIBRATING -> "Calibrating Cycle Texture"
     }
 

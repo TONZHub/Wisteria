@@ -14,6 +14,7 @@ import com.example.domain.agent.tools.TriggerProactiveCareActionTool
 import com.example.testutil.FakeGeminiApiService
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -122,5 +123,29 @@ class DailyCheckInAgentTest {
         )
 
         assertEquals(listOf("pmdd_pattern_analysis"), cloudRunWorkflows)
+    }
+
+    @Test
+    fun `agent output never names a specific person`() = runTest {
+        val agent = buildAgent()
+
+        val inputs = listOf("1", "2", "3", "4", "5", "spotting started", "feeling great", "crash")
+        for (input in inputs) {
+            val response = agent.processUserTurn(
+                userPrompt = input,
+                conversationHistory = emptyList(),
+                onStateChange = { _, _ -> },
+                onToolExecuted = { }
+            )
+
+            assertFalse(
+                "response text leaked a personal name for input '$input': ${response.text}",
+                response.text.contains("Zoe", ignoreCase = true)
+            )
+            assertFalse(
+                "thought trace leaked a personal name for input '$input': ${response.thoughtTrace}",
+                response.thoughtTrace?.contains("Zoe", ignoreCase = true) == true
+            )
+        }
     }
 }

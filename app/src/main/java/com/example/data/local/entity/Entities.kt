@@ -27,7 +27,7 @@ data class CareActionEntity(
     @PrimaryKey val id: String,
     val checkInId: String,
     val title: String,
-    val type: String, // "NERVE_TONIC", "LOW_EFFORT_MEAL", "COGNITIVE_REDUCTION", "COMFORT_QUEUE", "TRUSTED_CONTACT"
+    val type: String, // "REST_SUPPORT", "LOW_EFFORT_MEAL", "COGNITIVE_REDUCTION", "COMFORT_QUEUE", "TRUSTED_CONTACT"
     val description: String,
     val isAutoTriggered: Boolean = true,
     val isCompleted: Boolean = false,

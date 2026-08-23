@@ -149,7 +149,7 @@ fun AdkArchitectureScreen(
 
                     val principles = listOf(
                         "Never ask more than one thing at a time" to "Single number (1-5), emoji, or word. Done in 3 seconds.",
-                        "Learn the pattern. Don't impose one." to "Adapts to 10-day spotting and irregular cycles without 28-day assumptions.",
+                        "Learn the pattern. Don't impose one." to "Adapts to each person's own spotting length and irregular cycle, never assuming 28-day math.",
                         "Act before the crash, not after" to "Pre-warning alerts & rest reminders before the meds-drop window hits.",
                         "On bad days: ask less, do more" to "Lowers cognitive load, activates shield, queues zero-effort meals.",
                         "Full screen. Unmissable." to "High-priority takeover dialog ensures check-in happens when bandwidth is low."
@@ -332,11 +332,11 @@ fun AdkArchitectureScreen(
                     ) {
                         Column(modifier = Modifier.padding(10.dp)) {
                             Text(
-                                text = "● [Cloud Run Endpoint]: https://wisteria-agent-worker-us-central1.run.app\n" +
-                                        "● [Firestore Document]: users/zoe_wisteria_companion/cycle_timeline\n" +
+                                text = "● [Night Shift Worker]: local://night-shift (same logic locally; deploy to Cloud Run for production)\n" +
+                                        "● [Firestore Document]: users/{uid}/cycle_timeline\n" +
                                         "● [Gemini Reasoning Model]: gemini-3.5-flash (v1beta)\n" +
                                         "● [ADK Memory Cache]: Room DB v2 (DailyCheckIn, CareAction, AgentMemory)\n" +
-                                        "● [Cloud Run Jobs Dispatched]: ${uiState.cloudRunLogs.size}\n" +
+                                        "● [Night Shift Runs]: ${uiState.cloudRunLogs.size}\n" +
                                         "● [Firestore Snapshots Synced]: ${uiState.firestoreSyncLogs.size}",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontFamily = FontFamily.Monospace,

@@ -18,6 +18,7 @@ import com.example.domain.agent.model.CycleTexture
 import com.example.domain.agent.model.DailyPulseData
 import com.example.domain.agent.model.MessageSender
 import com.example.domain.agent.model.ToolCallRecord
+import com.example.domain.agent.MorningBrief
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,6 +38,8 @@ data class CheckInUiState(
     val cloudRunLogs: List<CloudRunJobExecution> = emptyList(),
     val firestoreSyncLogs: List<FirestoreSyncRecord> = emptyList(),
     val cyclePhases: List<Map<String, Any>> = emptyList(),
+    val morningBrief: MorningBrief? = null,
+    val isNightShiftRunning: Boolean = false,
     val isAgentActive: Boolean = false,
     val showStartupAnimation: Boolean = false,
     val isFullScreenTakeoverActive: Boolean = false,
@@ -63,16 +66,16 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        // Initialize Zoe's welcome / startup greeting
+        // Initialize the welcome / startup greeting
         val initialAgentMessage = AgentMessage(
             id = UUID.randomUUID().toString(),
             sender = MessageSender.AGENT,
             text = """
                 Wisteria is ready. Let's start simple.
-                
+
                 How are you feeling today? (1–5, an emoji, or one word)
             """.trimIndent(),
-            thoughtTrace = "Initialized system pattern recognition for Zoe. Standing by for single-input 3-second daily pulse."
+            thoughtTrace = "Initialized system pattern recognition. Standing by for single-input 3-second daily pulse."
         )
         _uiState.value = _uiState.value.copy(
             messages = listOf(initialAgentMessage)
@@ -100,7 +103,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
             val bootSteps = listOf(
                 "initializing pattern recognition...",
                 "connecting to Gemini 3.5 Flash & Google ADK...",
-                "retrieving Zoe's irregular cycle timeline from Firestore...",
+                "retrieving your irregular cycle timeline from Firestore...",
                 "calibrating to you...",
                 "Wisteria is ready."
             )
@@ -183,16 +186,31 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    fun triggerCloudRunWorkflow(workflowType: String = "pmdd_pattern_analysis") {
+    /** Runs the real Night Shift pattern worker against local check-in history. */
+    fun runNightShift() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(agentStatusMessage = "Dispatching Cloud Run async pattern worker...")
-            val job = repository.triggerManualCloudRunSync()
-            val logs = _uiState.value.cloudRunLogs + job
-            _uiState.value = _uiState.value.copy(
-                cloudRunLogs = logs,
-                agentStatusMessage = "Cloud Run Job '${job.jobId}' completed."
-            )
+            _uiState.value = _uiState.value.copy(isNightShiftRunning = true, agentStatusMessage = "Running Night Shift...")
+            try {
+                val job = repository.runNightShift()
+                val logs = _uiState.value.cloudRunLogs + job
+                _uiState.value = _uiState.value.copy(
+                    cloudRunLogs = logs,
+                    morningBrief = job.morningBrief,
+                    isNightShiftRunning = false,
+                    agentStatusMessage = job.morningBrief?.headline ?: "Night Shift complete."
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isNightShiftRunning = false,
+                    agentStatusMessage = "Night Shift failed: ${e.message ?: "unknown error"}"
+                )
+            }
         }
+    }
+
+    /** Kept for back-compat with older call sites; Night Shift is now the real Cloud Run worker. */
+    fun triggerCloudRunWorkflow(workflowType: String = "night_shift") {
+        runNightShift()
     }
 
     fun triggerFirestoreSync() {

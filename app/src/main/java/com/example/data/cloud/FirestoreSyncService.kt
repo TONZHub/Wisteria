@@ -38,10 +38,10 @@ class FirestoreSyncServiceImpl(
     private val auth: FirebaseAuth by lazy(authProvider)
 
     private val defaultPhaseBlueprint = listOf(
-        mapOf("phase" to "10-Day Spotting Window", "duration" to "10 days", "texture" to "Irregular baseline spotting", "patternSignal" to "Spotting ≠ Period (unique to Zoe)"),
-        mapOf("phase" to "Actual Period Bleeding", "duration" to "4 days", "texture" to "Standard bleeding", "patternSignal" to "Follows long spotting phase"),
-        mapOf("phase" to "Alive & Thriving Window", "duration" to "7-8 days", "texture" to "High energy, clarity", "patternSignal" to "Baseline optimal wellness"),
-        mapOf("phase" to "5-Day Meds Efficacy Drop Window", "duration" to "5 days", "texture" to "PMDD window / Brain fog", "patternSignal" to "Psych meds efficacy dips; Nerve tonic required")
+        mapOf("phase" to "Spotting Window", "duration" to "learned", "texture" to "Irregular baseline spotting", "patternSignal" to "Spotting is tracked separately from an actual period"),
+        mapOf("phase" to "Period Window", "duration" to "learned", "texture" to "Standard bleeding", "patternSignal" to "Follows the spotting window"),
+        mapOf("phase" to "Alive Window", "duration" to "learned", "texture" to "High energy, clarity", "patternSignal" to "Baseline optimal wellness"),
+        mapOf("phase" to "Drop Window (PMDD)", "duration" to "learned", "texture" to "Brain fog / harder window", "patternSignal" to "Harder window; rest and low cognitive load recommended")
     )
 
     private suspend fun ensureSignedIn() {
@@ -72,7 +72,7 @@ class FirestoreSyncServiceImpl(
         )
         docRef.set(payload).await()
 
-        val payloadPreview = "Rating: ${pulse.ratingValue}/5, Texture: ${pulse.texture.name}, PMDD Active: ${pulse.isPmddWindowActive}, Nerve Tonic: ${pulse.nerveTonicTaken}"
+        val payloadPreview = "Rating: ${pulse.ratingValue}/5, Texture: ${pulse.texture.name}, PMDD Active: ${pulse.isPmddWindowActive}, Rest Taken: ${pulse.nerveTonicTaken}"
 
         return FirestoreSyncRecord(
             documentPath = docRef.path,

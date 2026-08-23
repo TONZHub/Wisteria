@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Button
@@ -45,8 +44,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material3.CircularProgressIndicator
 import com.example.data.local.entity.CareActionEntity
 import com.example.data.local.entity.DailyCheckInEntity
+import com.example.domain.agent.MorningBrief
 import com.example.domain.agent.model.CycleTexture
 import com.example.ui.components.CareActionRow
 import com.example.ui.components.CycleTextureGauge
@@ -65,7 +67,7 @@ fun DailySummaryScreen(
     careActions: List<CareActionEntity>,
     onToggleCareAction: (String, Boolean) -> Unit,
     onOpenTakeover: () -> Unit,
-    onTriggerCloudRun: () -> Unit,
+    onRunNightShift: () -> Unit,
     onTriggerFirestoreSync: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -86,6 +88,15 @@ fun DailySummaryScreen(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Night Shift Morning Brief
+        item {
+            MorningBriefCard(
+                brief = uiState.morningBrief,
+                isRunning = uiState.isNightShiftRunning,
+                onRunNightShift = onRunNightShift
+            )
+        }
+
         // Hero Cycle Texture Gauge
         item {
             CycleTextureGauge(
@@ -95,7 +106,7 @@ fun DailySummaryScreen(
             )
         }
 
-        // Zoe's 4-Phase Irregular Cycle Blueprint Card
+        // Learned 4-Phase Irregular Cycle Blueprint Card
         item {
             Card(
                 modifier = Modifier
@@ -119,7 +130,7 @@ fun DailySummaryScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Learned Body Texture (Zoe's Pattern)",
+                                text = "Learned Body Texture",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                         }
@@ -154,10 +165,10 @@ fun DailySummaryScreen(
                                 PhaseRow(title, desc, phaseColor, isActive)
                             }
                         } else {
-                            PhaseRow("10-Day Spotting Phase", "Irregular spotting before actual period", SpottingRose, detectedTexture == CycleTexture.SPOTTING_PHASE)
-                            PhaseRow("Actual Period Flow", "True bleeding phase (~4 days)", DropCoral, detectedTexture == CycleTexture.ACTUAL_PERIOD)
-                            PhaseRow("Alive & Optimal Window", "~1 week feeling alive, clear & energetic", ForestGreenMint, detectedTexture == CycleTexture.FEELING_GOOD)
-                            PhaseRow("5-Day Meds Efficacy Drop", "PMDD drop: psych meds stop working", WisteriaLavender, detectedTexture == CycleTexture.MEDS_DROP_WINDOW || isPmddActive)
+                            PhaseRow("Spotting Window", "Irregular spotting before an actual period, length learned", SpottingRose, detectedTexture == CycleTexture.SPOTTING_PHASE)
+                            PhaseRow("Actual Period Flow", "True bleeding phase, length learned", DropCoral, detectedTexture == CycleTexture.ACTUAL_PERIOD)
+                            PhaseRow("Alive & Optimal Window", "Feeling alive, clear & energetic", ForestGreenMint, detectedTexture == CycleTexture.FEELING_GOOD)
+                            PhaseRow("Drop Window (PMDD)", "Harder window: brain fog, meds efficacy dips", WisteriaLavender, detectedTexture == CycleTexture.MEDS_DROP_WINDOW || isPmddActive)
                         }
                     }
                 }
@@ -200,7 +211,7 @@ fun DailySummaryScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "No care actions queued right now. Complete a single-input check-in to trigger pre-emptive nerve tonic & low-effort comfort items!",
+                            text = "No care actions queued right now. Complete a single-input check-in to trigger pre-emptive rest & low-effort comfort items!",
                             style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -262,7 +273,7 @@ fun DailySummaryScreen(
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                                 )
                                 Text(
-                                    text = latestCheckIn?.firestoreDocPath ?: "users/zoe/cycle_timeline/today",
+                                    text = latestCheckIn?.firestoreDocPath ?: "users/{uid}/cycle_timeline/today",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,
@@ -283,43 +294,32 @@ fun DailySummaryScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Cloud Run Row
+                    // Night Shift Worker Row (informational - the "Run Night Shift" button lives on
+                    // the Morning Brief card above; this is honestly local, not a fake Cloud Run host)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.RocketLaunch,
-                                contentDescription = "Cloud Run",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                        Icon(
+                            imageVector = Icons.Default.NightsStay,
+                            contentDescription = "Night Shift Worker",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Night Shift Worker",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = "Cloud Run Pattern Worker",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = "local://night-shift · runs in-process",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Text(
-                                    text = "wisteria-agent-worker-us-central1",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                )
-                            }
-                        }
-
-                        Button(
-                            onClick = onTriggerCloudRun,
-                            modifier = Modifier.testTag("trigger_cloudrun_button"),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text("Dispatch Job", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimary)
+                            )
                         }
                     }
                 }
@@ -384,6 +384,123 @@ fun PhaseRow(
                         ),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MorningBriefCard(
+    brief: MorningBrief?,
+    isRunning: Boolean,
+    onRunNightShift: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("morning_brief_card"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+        border = CardDefaults.outlinedCardBorder()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.NightsStay,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Night Shift",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+
+                Button(
+                    onClick = onRunNightShift,
+                    enabled = !isRunning,
+                    modifier = Modifier.testTag("run_night_shift_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = if (isRunning) "Running..." else "Run Night Shift",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            when {
+                isRunning -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Reading check-in history and detecting your pattern...",
+                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        )
+                    }
+                }
+                brief == null -> {
+                    Text(
+                        text = "Night Shift hasn't run yet. It reads your check-in history and learns your own spotting and drop-window length - no fixed schedule assumed.",
+                        style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    )
+                }
+                else -> {
+                    Text(
+                        text = brief.headline,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = brief.body,
+                        style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${brief.sampleSize} day(s) read" +
+                            (brief.daysUntilDrop?.let { " · ${it}d to drop" } ?: " · still calibrating"),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = ForestGreenSage,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+
+                    if (brief.traces.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                brief.traces.forEach { trace ->
+                                    Text(
+                                        text = "${trace.toolName}(${trace.args.entries.joinToString { "${it.key}=${it.value}" }}) → ${trace.result}",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
+                                        modifier = Modifier.padding(vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

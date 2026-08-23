@@ -19,9 +19,9 @@ enum class MessageSender {
 
 enum class CycleTexture {
     FEELING_GOOD,      // Alive / Baseline okay
-    SPOTTING_PHASE,    // Zoe's long spotting window
+    SPOTTING_PHASE,    // Learned longer spotting stretch
     ACTUAL_PERIOD,     // Full bleeding
-    MEDS_DROP_WINDOW,  // ~5 days where psych meds stop working (PMDD window)
+    MEDS_DROP_WINDOW,  // PMDD / harder window, duration learned
     UNKNOWN_CALIBRATING
 }
 
@@ -36,7 +36,7 @@ data class ToolCallRecord(
 data class CareActionData(
     val id: String,
     val title: String,
-    val type: String, // "NERVE_TONIC", "LOW_EFFORT_MEAL", "COGNITIVE_REDUCTION", "COMFORT_QUEUE", "TRUSTED_CONTACT"
+    val type: String, // "REST_SUPPORT", "LOW_EFFORT_MEAL", "COGNITIVE_REDUCTION", "COMFORT_QUEUE", "TRUSTED_CONTACT"
     val description: String,
     val isAutoTriggered: Boolean = true,
     val isCompleted: Boolean = false,

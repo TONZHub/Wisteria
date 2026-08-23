@@ -10,6 +10,7 @@ import com.example.data.local.dao.CheckInDao
 import com.example.data.local.entity.CareActionEntity
 import com.example.data.local.entity.AgentMemoryEntity
 import com.example.data.local.entity.DailyCheckInEntity
+import com.example.domain.agent.CheckInHistoryEntry
 import com.example.domain.agent.DailyCheckInAgent
 import com.example.domain.agent.model.CareActionData
 import com.example.domain.agent.model.CyclePatternState
@@ -20,7 +21,9 @@ import com.example.domain.agent.tools.DetectPMDDWindowTool
 import com.example.domain.agent.tools.FirestoreSyncTool
 import com.example.domain.agent.tools.RecordSingleInputCheckInTool
 import com.example.domain.agent.tools.TriggerProactiveCareActionTool
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,12 +64,12 @@ class WisteriaRepository(
             )
         },
         FirestoreSyncTool { pulse ->
-            val record = firestoreService.syncDailyCheckIn("zoe_wisteria_companion", pulse)
+            val record = firestoreService.syncDailyCheckIn(currentUserId(), pulse)
             markTodaysCheckInSynced(record.documentPath)
             record.documentPath
         },
         CloudRunWorkflowTool { workflowType ->
-            val job = cloudRunService.dispatchWorkflowJob(workflowType, mapOf("triggeredBy" to "Wisteria_Agent"))
+            val job = cloudRunService.dispatchWorkflowJob(workflowType, mapOf("triggeredBy" to "Wisteria_Agent"), loadCheckInHistory())
             job.jobId
         }
     )
@@ -134,20 +137,47 @@ class WisteriaRepository(
     }
 
     suspend fun triggerManualCloudRunSync(): CloudRunJobExecution {
-        return cloudRunService.dispatchWorkflowJob("pmdd_pattern_analysis", mapOf("source" to "CompanionUI"))
+        return cloudRunService.dispatchWorkflowJob("pmdd_pattern_analysis", mapOf("source" to "CompanionUI"), loadCheckInHistory())
+    }
+
+    /** Runs the real overnight pattern worker now, on demand, against local check-in history. */
+    suspend fun runNightShift(): CloudRunJobExecution {
+        return cloudRunService.dispatchWorkflowJob("night_shift", mapOf("source" to "CompanionUI"), loadCheckInHistory())
     }
 
     suspend fun triggerManualFirestoreSync(pulse: DailyPulseData): FirestoreSyncRecord {
-        val record = firestoreService.syncDailyCheckIn("zoe_wisteria_companion", pulse)
+        val record = firestoreService.syncDailyCheckIn(currentUserId(), pulse)
         markTodaysCheckInSynced(record.documentPath)
         return record
     }
 
     suspend fun getCycleMemorySnapshot(): List<Map<String, Any>> {
-        return firestoreService.fetchCycleMemorySnapshot("zoe_wisteria_companion")
+        return firestoreService.fetchCycleMemorySnapshot(currentUserId())
     }
 
     fun getTodayDateString(): String {
         return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    }
+
+    private suspend fun loadCheckInHistory(): List<CheckInHistoryEntry> {
+        return checkInDao.getAllCheckInsFlow().first().map { entity ->
+            CheckInHistoryEntry(
+                date = entity.date,
+                rating = entity.ratingValue,
+                texture = try {
+                    CycleTexture.valueOf(entity.detectedTexture)
+                } catch (e: Exception) {
+                    CycleTexture.UNKNOWN_CALIBRATING
+                },
+                inputText = entity.singleInputResponse
+            )
+        }
+    }
+
+    /** Falls back to "anonymous" until Firebase anonymous sign-in has completed at least once. */
+    private fun currentUserId(): String = try {
+        FirebaseAuth.getInstance().currentUser?.uid ?: "anonymous"
+    } catch (e: Exception) {
+        "anonymous"
     }
 }

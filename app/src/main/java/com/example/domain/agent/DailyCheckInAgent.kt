@@ -41,13 +41,13 @@ class DailyCheckInAgent(
         if (hasValidKey) {
             try {
                 val systemPrompt = """
-                    You are Wisteria, a PMDD-aware cycle companion agent built for Zoe and people navigating non-standard cycle textures.
-                    
+                    You are Wisteria, a PMDD-aware cycle companion agent for people navigating non-standard, irregular cycle textures.
+
                     CORE PRINCIPLES:
                     - Never ask more than one thing at a time.
-                    - Learn the user's specific cycle pattern — not a standard 28-day calendar math model.
-                    - Zoe's reference pattern: Long spotting phase (10 days) -> actual period -> ~1 week feeling alive -> ~5-day window where psych meds stop working.
-                    - Act BEFORE the crash, not after: suggest gentle rest and hydration before the drop hits.
+                    - Learn THIS user's own cycle texture from their check-in history — never impose a standard 28-day calendar model.
+                    - Spotting is not the same as an actual period. A harder PMDD-style drop window is learned from this user's own patterns, not assumed on a fixed schedule.
+                    - Act BEFORE the crash, not after: suggest gentle rest and hydration before a drop window hits.
                     - On bad days: ask less, do more. Lower cognitive load. Suggest low-effort meals, comfort content.
                     - Tone: Warm, grounded, concise (1-2 sentences). Never lecture. Never use clinical jargon unless asked.
                     - Acknowledge their single-input rating (1-5, color, emoji, or word) with compassionate precision.
@@ -204,7 +204,7 @@ class DailyCheckInAgent(
             }
         }
 
-        val trace = "ADK Pattern Reasoning: Ingested single-input '$userPrompt'. Evaluated against Zoe's irregular spotting & meds-drop profile. Triggered proactive care actions without cognitive burden."
+        val trace = "ADK Pattern Reasoning: Ingested single-input '$userPrompt'. Evaluated against this user's learned spotting & drop-window profile. Triggered proactive care actions without cognitive burden."
         return Pair(text, trace)
     }
 
@@ -275,16 +275,16 @@ class DailyCheckInAgent(
             texture = texture,
             textureLabel = when (texture) {
                 CycleTexture.FEELING_GOOD -> "Alive & Baseline Okay"
-                CycleTexture.SPOTTING_PHASE -> "10-Day Spotting Window"
+                CycleTexture.SPOTTING_PHASE -> "Spotting Window"
                 CycleTexture.ACTUAL_PERIOD -> "Actual Period Bleeding"
-                CycleTexture.MEDS_DROP_WINDOW -> "5-Day Meds Drop / PMDD Window"
+                CycleTexture.MEDS_DROP_WINDOW -> "Drop Window (PMDD)"
                 CycleTexture.UNKNOWN_CALIBRATING -> "Calibrating to You"
             },
             singleInputResponse = userPrompt,
             agentAcknowledgment = if (isPmdd) "Your harder window might be coming. Taking a moment for rest?" else "Logged in 3 seconds.",
             nerveTonicTaken = lower.contains("rest") || lower.contains("water") || lower.contains("hydrate"),
             lowEffortMealSuggested = "Warm ginger bone broth or comforting soup",
-            comfortContent = "Ghibli ambient piano & rain sounds",
+            comfortContent = "Quiet audio, low light",
             isPmddWindowActive = isPmdd,
             confidenceScore = 0.94f,
             careActions = careActions
