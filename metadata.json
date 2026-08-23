@@ -1,6 +1,6 @@
 {
   "name": "Wisteria",
-  "description": "Scaffolded Wisteria agentic architecture featuring Gemini 3.5 Flash, Google ADK daily check-in agent, Firestore persistence, and Cloud Run workflow integration.",
+  "description": "A low-bandwidth Android daily-rhythm companion with local pattern learning, optional Firebase sync, and an optional Firebase AI Logic response layer.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

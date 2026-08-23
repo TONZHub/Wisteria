@@ -2,7 +2,7 @@ package com.example.domain.agent.model
 
 enum class AgentExecutionState {
     IDLE,
-    CALIBRATING,
+    LEARNING,
     REASONING,
     EXECUTING_TOOL,
     SYNTHESIZING,
@@ -17,12 +17,12 @@ enum class MessageSender {
     TOOL_RESULT
 }
 
-enum class CycleTexture {
-    FEELING_GOOD,      // Alive / Baseline okay
-    SPOTTING_PHASE,    // Learned longer spotting stretch
-    ACTUAL_PERIOD,     // Full bleeding
-    MEDS_DROP_WINDOW,  // PMDD / harder window, duration learned
-    UNKNOWN_CALIBRATING
+enum class DailyTexture {
+    BRIGHT,
+    STEADY,
+    HEAVY,
+    OFF,
+    UNKNOWN
 }
 
 data class ToolCallRecord(
@@ -36,35 +36,24 @@ data class ToolCallRecord(
 data class CareActionData(
     val id: String,
     val title: String,
-    val type: String, // "REST_SUPPORT", "LOW_EFFORT_MEAL", "COGNITIVE_REDUCTION", "COMFORT_QUEUE", "TRUSTED_CONTACT"
+    val type: String, // "REST_SUPPORT", "LOW_EFFORT_MEAL", "SIMPLIFY", "COMFORT_QUEUE"
     val description: String,
     val isAutoTriggered: Boolean = true,
     val isCompleted: Boolean = false,
     val iconName: String = "Spa"
 )
 
-data class CyclePatternState(
-    val currentDayInTexture: Int = 1,
-    val detectedTexture: CycleTexture = CycleTexture.FEELING_GOOD,
-    val isPmddWindowImminent: Boolean = false,
-    val pmddConfidence: Float = 0.88f,
-    val daysUntilDropWindow: Int = 2,
-    val nerveTonicRecommended: Boolean = false,
-    val cognitiveLoadReduced: Boolean = false,
-    val summaryInsight: String = "Wisteria is calibrating to your body's specific rhythm without imposing standard 28-day calendar math."
-)
-
 data class DailyPulseData(
     val ratingValue: Int = 3, // 1 to 5 scale
-    val texture: CycleTexture = CycleTexture.FEELING_GOOD,
-    val textureLabel: String = "Feeling Alive / Okay",
-    val singleInputResponse: String = "3",
-    val agentAcknowledgment: String = "Recorded. Holding space for today.",
-    val nerveTonicTaken: Boolean = false,
-    val lowEffortMealSuggested: String = "Warm bone broth or easy comfort soup",
-    val comfortContent: String = "Lofi rain & studio ghibli ambient sounds",
-    val isPmddWindowActive: Boolean = false,
-    val confidenceScore: Float = 0.85f,
+    val texture: DailyTexture = DailyTexture.UNKNOWN,
+    val textureLabel: String = "Learning your pattern",
+    val singleInputResponse: String = "",
+    val agentAcknowledgment: String = "Check-in recorded.",
+    val restOrHydrationLogged: Boolean = false,
+    val lowEffortMealSuggested: String = "Simple meal or snack",
+    val comfortContent: String = "Quiet audio or low light",
+    val isOffDay: Boolean = false,
+    val confidenceScore: Float = 0f,
     val careActions: List<CareActionData> = emptyList()
 )
 

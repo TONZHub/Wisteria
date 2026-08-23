@@ -49,14 +49,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import com.example.data.local.entity.CareActionEntity
 import com.example.data.local.entity.DailyCheckInEntity
 import com.example.domain.agent.MorningBrief
-import com.example.domain.agent.model.CycleTexture
+import com.example.domain.agent.model.DailyTexture
 import com.example.ui.components.CareActionRow
-import com.example.ui.components.CycleTextureGauge
-import com.example.ui.theme.DropCoral
+import com.example.ui.components.DailyTextureGauge
+import com.example.ui.theme.OffCoral
 import com.example.ui.theme.ForestGreenAccent
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
-import com.example.ui.theme.SpottingRose
+import com.example.ui.theme.HeavyRose
 import com.example.ui.theme.WisteriaLavender
 import com.example.ui.viewmodel.CheckInUiState
 
@@ -74,11 +74,11 @@ fun DailySummaryScreen(
     val pulse = uiState.latestPulse
     val rating = latestCheckIn?.ratingValue ?: pulse.ratingValue
     val detectedTexture = try {
-        CycleTexture.valueOf(latestCheckIn?.detectedTexture ?: pulse.texture.name)
+        DailyTexture.valueOf(latestCheckIn?.detectedTexture ?: pulse.texture.name)
     } catch (e: Exception) {
         pulse.texture
     }
-    val isPmddActive = latestCheckIn?.isPmddWindowActive ?: pulse.isPmddWindowActive
+    val isOffDay = latestCheckIn?.isOffDay ?: pulse.isOffDay
 
     LazyColumn(
         modifier = modifier
@@ -97,21 +97,21 @@ fun DailySummaryScreen(
             )
         }
 
-        // Hero Cycle Texture Gauge
+        // Today's everyday texture.
         item {
-            CycleTextureGauge(
+            DailyTextureGauge(
                 texture = detectedTexture,
                 rating = rating,
-                isPmddImminent = isPmddActive
+                isOffDay = isOffDay
             )
         }
 
-        // Learned 4-Phase Irregular Cycle Blueprint Card
+        // Everyday textures saved from the person's own check-ins.
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("cycle_phases_card"),
+                    .testTag("everyday_textures_card"),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             ) {
@@ -130,12 +130,12 @@ fun DailySummaryScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Learned Body Texture",
+                                text = "Your Everyday Textures",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                         }
                         Text(
-                            text = "Not 28-day math",
+                            text = "Your words only",
                             style = MaterialTheme.typography.labelSmall.copy(color = ForestGreenSage, fontSize = 10.sp)
                         )
                     }
@@ -143,39 +143,40 @@ fun DailySummaryScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (uiState.cyclePhases.isNotEmpty()) {
-                            uiState.cyclePhases.forEach { phase ->
-                                val title = phase["phase"] as? String ?: "Phase"
-                                val desc = phase["patternSignal"] as? String ?: ""
+                        if (uiState.textureSummary.isNotEmpty()) {
+                            uiState.textureSummary.forEach { entry ->
+                                val title = entry["textureTitle"] as? String ?: "Everyday texture"
+                                val desc = entry["patternSignal"] as? String ?: ""
                                 
-                                val phaseColor = when {
-                                    title.contains("Spotting") -> SpottingRose
-                                    title.contains("Period") -> DropCoral
-                                    title.contains("Alive") -> ForestGreenMint
+                                val textureColor = when {
+                                    title.contains("Heavy") -> HeavyRose
+                                    title.contains("Off") -> OffCoral
+                                    title.contains("Bright") -> ForestGreenMint
                                     else -> WisteriaLavender
                                 }
                                 
                                 val isActive = when {
-                                    title.contains("Spotting") -> detectedTexture == CycleTexture.SPOTTING_PHASE
-                                    title.contains("Period") -> detectedTexture == CycleTexture.ACTUAL_PERIOD
-                                    title.contains("Alive") -> detectedTexture == CycleTexture.FEELING_GOOD
-                                    else -> detectedTexture == CycleTexture.MEDS_DROP_WINDOW || isPmddActive
+                                    title.contains("Heavy") -> detectedTexture == DailyTexture.HEAVY
+                                    title.contains("Steady") -> detectedTexture == DailyTexture.STEADY
+                                    title.contains("Bright") -> detectedTexture == DailyTexture.BRIGHT
+                                    title.contains("Off") -> detectedTexture == DailyTexture.OFF || isOffDay
+                                    else -> detectedTexture == DailyTexture.UNKNOWN
                                 }
 
-                                PhaseRow(title, desc, phaseColor, isActive)
+                                TextureRow(title, desc, textureColor, isActive)
                             }
                         } else {
-                            PhaseRow("Spotting Window", "Irregular spotting before an actual period, length learned", SpottingRose, detectedTexture == CycleTexture.SPOTTING_PHASE)
-                            PhaseRow("Actual Period Flow", "True bleeding phase, length learned", DropCoral, detectedTexture == CycleTexture.ACTUAL_PERIOD)
-                            PhaseRow("Alive & Optimal Window", "Feeling alive, clear & energetic", ForestGreenMint, detectedTexture == CycleTexture.FEELING_GOOD)
-                            PhaseRow("Drop Window (PMDD)", "Harder window: brain fog, meds efficacy dips", WisteriaLavender, detectedTexture == CycleTexture.MEDS_DROP_WINDOW || isPmddActive)
+                            TextureRow("Bright", "Clear, good, alive, or bright", ForestGreenMint, detectedTexture == DailyTexture.BRIGHT)
+                            TextureRow("Steady", "Okay, fine, managing, or steady", ForestGreenSage, detectedTexture == DailyTexture.STEADY)
+                            TextureRow("Heavy", "Tired, foggy, hard, or heavy", HeavyRose, detectedTexture == DailyTexture.HEAVY)
+                            TextureRow("Off", "Off, awful, or crashed", WisteriaLavender, detectedTexture == DailyTexture.OFF || isOffDay)
                         }
                     }
                 }
             }
         }
 
-        // Proactive Care Actions & Pre-Crash Interventions
+        // Optional ideas remain inside Wisteria until the person chooses one.
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -191,7 +192,7 @@ fun DailySummaryScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Proactive Care & Pre-Crash Actions",
+                        text = "Low-Effort Ideas",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 }
@@ -211,7 +212,7 @@ fun DailySummaryScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "No care actions queued right now. Complete a single-input check-in to trigger pre-emptive rest & low-effort comfort items!",
+                            text = "No ideas saved right now. A heavy or off check-in can offer a few optional, low-effort choices.",
                             style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -234,7 +235,7 @@ fun DailySummaryScreen(
             }
         }
 
-        // Cloud Run & Firestore Backend Scaffold
+        // Local storage and explicit, optional Firestore sync.
         item {
             Card(
                 modifier = Modifier
@@ -248,7 +249,7 @@ fun DailySummaryScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Google Cloud & Firestore Architecture",
+                        text = "Storage & Optional Sync",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -273,7 +274,7 @@ fun DailySummaryScreen(
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                                 )
                                 Text(
-                                    text = latestCheckIn?.firestoreDocPath ?: "users/{uid}/cycle_timeline/today",
+                                    text = latestCheckIn?.firestoreDocPath ?: "Not synced · stays on this device",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,
@@ -294,8 +295,7 @@ fun DailySummaryScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Night Shift Worker Row (informational - the "Run Night Shift" button lives on
-                    // the Morning Brief card above; this is honestly local, not a fake Cloud Run host)
+                    // Night Shift runs locally from the button in the brief above.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -313,7 +313,7 @@ fun DailySummaryScreen(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(
-                                text = "local://night-shift · runs in-process",
+                            text = "on-device · runs only when you tap the button",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 10.sp,
@@ -329,7 +329,7 @@ fun DailySummaryScreen(
 }
 
 @Composable
-fun PhaseRow(
+fun TextureRow(
     title: String,
     desc: String,
     color: Color,
@@ -376,7 +376,7 @@ fun PhaseRow(
                     color = color.copy(alpha = 0.3f)
                 ) {
                     Text(
-                        text = "ACTIVE",
+                        text = "TODAY",
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = color,
                             fontWeight = FontWeight.Bold,
@@ -455,7 +455,7 @@ fun MorningBriefCard(
                 }
                 brief == null -> {
                     Text(
-                        text = "Night Shift hasn't run yet. It reads your check-in history and learns your own spotting and drop-window length - no fixed schedule assumed.",
+                        text = "Night Shift hasn't run yet. It reads local check-ins and looks for repeating heavy-to-off stretches.",
                         style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                     )
                 }
@@ -472,7 +472,7 @@ fun MorningBriefCard(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "${brief.sampleSize} day(s) read" +
-                            (brief.daysUntilDrop?.let { " · ${it}d to drop" } ?: " · still calibrating"),
+                            (brief.daysUntilOff?.let { " · off may be ~${it}d away" } ?: " · still learning"),
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = ForestGreenSage,
                             fontWeight = FontWeight.SemiBold

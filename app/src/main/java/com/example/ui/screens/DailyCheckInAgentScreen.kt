@@ -66,11 +66,11 @@ import com.example.data.local.entity.CareActionEntity
 import com.example.domain.agent.model.AgentMessage
 import com.example.domain.agent.model.MessageSender
 import com.example.ui.components.FullScreenCheckInDialog
-import com.example.ui.theme.DropCoral
+import com.example.ui.theme.OffCoral
 import com.example.ui.theme.ForestGreenAccent
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
-import com.example.ui.theme.SpottingRose
+import com.example.ui.theme.HeavyRose
 import com.example.ui.theme.WisteriaLavender
 import com.example.ui.viewmodel.CheckInUiState
 
@@ -94,10 +94,10 @@ fun DailyCheckInAgentScreen(
         }
     }
 
-    // Full Screen Takeover Notification Dialog (Unmissable, 3 seconds max)
+    // Optional full-screen check-in.
     FullScreenCheckInDialog(
         isOpen = uiState.isFullScreenTakeoverActive,
-        isHardDayDetected = uiState.latestPulse.isPmddWindowActive,
+        isOffDay = uiState.latestPulse.isOffDay,
         onDismiss = onCloseTakeover,
         onSubmitInput = { input ->
             onSendMessage(input)
@@ -152,53 +152,53 @@ fun DailyCheckInAgentScreen(
                     QuickPulseButton(
                         rating = 1,
                         icon = Icons.Default.Bolt,
-                        label = "Crash",
-                        bgColor = DropCoral.copy(alpha = 0.22f),
-                        activeColor = DropCoral,
+                        label = "Off",
+                        bgColor = OffCoral.copy(alpha = 0.22f),
+                        activeColor = OffCoral,
                         modifier = Modifier.weight(1f).testTag("chip_rating_1"),
-                        onClick = { onQuickOption(1, "Crash / Brain Fog") }
+                        onClick = { onQuickOption(1, "Off") }
                     )
                     QuickPulseButton(
                         rating = 2,
                         icon = Icons.Default.Cloud,
                         label = "Heavy",
-                        bgColor = SpottingRose.copy(alpha = 0.22f),
-                        activeColor = SpottingRose,
+                        bgColor = HeavyRose.copy(alpha = 0.22f),
+                        activeColor = HeavyRose,
                         modifier = Modifier.weight(1f).testTag("chip_rating_2"),
-                        onClick = { onQuickOption(2, "Heavy / Spotting") }
+                        onClick = { onQuickOption(2, "Heavy") }
                     )
                     QuickPulseButton(
                         rating = 3,
                         icon = Icons.Default.Eco,
-                        label = "Baseline",
+                        label = "Steady",
                         bgColor = ForestGreenAccent.copy(alpha = 0.22f),
                         activeColor = ForestGreenMint,
                         modifier = Modifier.weight(1f).testTag("chip_rating_3"),
-                        onClick = { onQuickOption(3, "Baseline Okay") }
+                        onClick = { onQuickOption(3, "Steady") }
                     )
                     QuickPulseButton(
                         rating = 4,
                         icon = Icons.Default.AutoAwesome,
-                        label = "Steady",
+                        label = "Clear",
                         bgColor = ForestGreenSage.copy(alpha = 0.22f),
                         activeColor = ForestGreenSage,
                         modifier = Modifier.weight(1f).testTag("chip_rating_4"),
-                        onClick = { onQuickOption(4, "Steady & Clear") }
+                        onClick = { onQuickOption(4, "Clear") }
                     )
                     QuickPulseButton(
                         rating = 5,
                         icon = Icons.Default.Favorite,
-                        label = "Alive",
+                        label = "Bright",
                         bgColor = WisteriaLavender.copy(alpha = 0.25f),
                         activeColor = WisteriaLavender,
                         modifier = Modifier.weight(1f).testTag("chip_rating_5"),
-                        onClick = { onQuickOption(5, "Alive & Radiant") }
+                        onClick = { onQuickOption(5, "Bright") }
                     )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Quick single-tap symptom chips
+                // Quick everyday texture chips.
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -206,24 +206,24 @@ fun DailyCheckInAgentScreen(
                     item {
                         QuickPill(
                             icon = Icons.Default.Spa,
-                            label = "Hydrated & Rested",
-                            onClick = { onSendMessage("I've prioritized rest and hydration") },
+                            label = "Rested",
+                            onClick = { onSendMessage("Feeling rested") },
                             testTag = "chip_rest_hydration"
                         )
                     }
                     item {
                         QuickPill(
                             icon = Icons.Default.WaterDrop,
-                            label = "Spotting Started",
-                            onClick = { onSendMessage("Spotting started today") },
-                            testTag = "chip_spotting"
+                            label = "Feeling Off",
+                            onClick = { onSendMessage("I feel off") },
+                            testTag = "chip_feeling_off"
                         )
                     }
                     item {
                         QuickPill(
                             icon = Icons.Default.Shield,
-                            label = "Need Low Bandwidth",
-                            onClick = { onSendMessage("Brain fog is heavy, need low bandwidth") },
+                            label = "Need Quiet",
+                            onClick = { onSendMessage("Today feels heavy; I need quiet") },
                             testTag = "chip_shield"
                         )
                     }
@@ -256,7 +256,7 @@ fun DailyCheckInAgentScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Pre-emptive Care Queued for You",
+                                text = "Optional Ideas Saved for You",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -322,7 +322,7 @@ fun DailyCheckInAgentScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Holding space & calibrating rhythm...",
+                            text = "Saving your check-in...",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

@@ -53,17 +53,17 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DropCoral
+import com.example.ui.theme.OffCoral
 import com.example.ui.theme.ForestGreenAccent
 import com.example.ui.theme.ForestGreenMint
-import com.example.ui.theme.SpottingRose
+import com.example.ui.theme.HeavyRose
 import com.example.ui.theme.WisteriaLavender
 import com.example.ui.theme.WisteriaSoftLilac
 
 @Composable
 fun FullScreenCheckInDialog(
     isOpen: Boolean,
-    isHardDayDetected: Boolean = false,
+    isOffDay: Boolean = false,
     onDismiss: () -> Unit,
     onSubmitInput: (String) -> Unit
 ) {
@@ -154,8 +154,8 @@ fun FullScreenCheckInDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = if (isHardDayDetected)
-                                "Harder day detected. Tap one to log:"
+                            text = if (isOffDay)
+                                "Last time felt off. How is today?"
                             else
                                 "How are you feeling today?",
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -174,15 +174,15 @@ fun FullScreenCheckInDialog(
                         ) {
                             data class RatingOption(val num: Int, val icon: ImageVector, val desc: String)
                             val options = listOf(
-                                RatingOption(1, Icons.Default.Bolt, "Crash / Heavy"),
-                                RatingOption(2, Icons.Default.Cloud, "Foggy / Spotting"),
-                                RatingOption(3, Icons.Default.Eco, "Baseline Okay"),
-                                RatingOption(4, Icons.Default.AutoAwesome, "Clear / Steady"),
-                                RatingOption(5, Icons.Default.Favorite, "Alive & Radiant")
+                                RatingOption(1, Icons.Default.Bolt, "Off"),
+                                RatingOption(2, Icons.Default.Cloud, "Heavy"),
+                                RatingOption(3, Icons.Default.Eco, "Steady"),
+                                RatingOption(4, Icons.Default.AutoAwesome, "Clear"),
+                                RatingOption(5, Icons.Default.Favorite, "Bright")
                             )
 
                             options.forEach { (num, icon, desc) ->
-                                val optionColor = if (num <= 2) DropCoral else ForestGreenAccent
+                                val optionColor = if (num <= 2) OffCoral else ForestGreenAccent
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
@@ -229,19 +229,19 @@ fun FullScreenCheckInDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             QuickPill(
-                                text = "Spotting",
-                                color = SpottingRose,
-                                onClick = { onSubmitInput("Spotting window (Day in progress)") }
+                                text = "Heavy",
+                                color = HeavyRose,
+                                onClick = { onSubmitInput("Today feels heavy") }
                             )
                             QuickPill(
-                                text = "Meds Drop",
-                                color = DropCoral,
-                                onClick = { onSubmitInput("Psych meds drop / PMDD fog") }
+                                text = "Off",
+                                color = OffCoral,
+                                onClick = { onSubmitInput("I feel off") }
                             )
                             QuickPill(
-                                text = "Alive",
+                                text = "Bright",
                                 color = ForestGreenMint,
-                                onClick = { onSubmitInput("Feeling alive and clear") }
+                                onClick = { onSubmitInput("Feeling bright and clear") }
                             )
                         }
                     }

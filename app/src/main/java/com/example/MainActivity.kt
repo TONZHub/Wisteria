@@ -51,11 +51,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.ui.screens.AdkArchitectureScreen
-import com.example.ui.screens.CyclePatternMemoryScreen
+import com.example.ui.screens.ArchitectureScreen
+import com.example.ui.screens.RhythmMemoryScreen
 import com.example.ui.screens.DailyCheckInAgentScreen
 import com.example.ui.screens.DailySummaryScreen
-import com.example.ui.theme.DropCoral
+import com.example.ui.theme.OffCoral
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.DailyCheckInViewModel
@@ -63,12 +63,13 @@ import com.example.ui.viewmodel.DailyCheckInViewModel
 enum class WisteriaTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     DAILY_PULSE("Check-In", Icons.Default.Spa),
     INSIGHTS("Insights", Icons.Default.AutoAwesome),
-    CYCLE_RHYTHM("Cycle & Care", Icons.Default.CalendarMonth)
+    RHYTHM_CARE("Rhythm & Care", Icons.Default.CalendarMonth)
 }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        configureFirebaseAppCheck(this)
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
@@ -97,7 +98,7 @@ fun WisteriaMainApp(
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 CenterAlignedTopAppBar(
-                    title = { Text("Agent Architecture", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
+                    title = { Text("How Wisteria Works", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
                     navigationIcon = {
                         TextButton(onClick = { showArchitecture = false }) {
                             Text("Back", color = MaterialTheme.colorScheme.primary)
@@ -109,10 +110,11 @@ fun WisteriaMainApp(
                 )
             }
         ) { innerPadding ->
-            AdkArchitectureScreen(
+            ArchitectureScreen(
                 uiState = uiState,
                 memories = memories,
-                onTriggerCloudRun = { viewModel.triggerCloudRunWorkflow() },
+                onLoadDemoHistory = { viewModel.loadDemoHistory() },
+                onRunNightShift = { viewModel.runNightShift() },
                 onTriggerFirestoreSync = { viewModel.triggerFirestoreSync() },
                 modifier = Modifier.padding(innerPadding)
             )
@@ -130,7 +132,7 @@ fun WisteriaMainApp(
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Wisteria Architecture")
+                        Text("About Wisteria")
                     }
                 },
                 text = {
@@ -141,14 +143,15 @@ fun WisteriaMainApp(
                         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Built for people with PMDD and low bandwidth.",
+                            text = "Built for low-bandwidth days.",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = "• AI Model: Gemini 3.5 Flash via Google ADK\n" +
-                                    "• Architecture: Local Room persistence + Cloud Firestore Sync\n" +
-                                    "• Pattern Rule: Learns spotting vs period vs drop from check-in history — never 28-day math\n" +
-                                    "• Zero Guilt: Done in 3 seconds every day.",
+                            text = "• Check in with a number or one everyday word\n" +
+                                    "• Keep bright, steady, heavy, and off days separate\n" +
+                                    "• Notice only patterns that appear in your own history\n" +
+                                    "• Store locally first; Firebase features are optional\n\n" +
+                                    "Wisteria reflects what you enter. It never assigns a body phase or cause.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 18.sp
@@ -161,7 +164,7 @@ fun WisteriaMainApp(
                             },
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("View Full Architecture Spec", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                            Text("See How It Works", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                         }
                     }
                 },
@@ -206,8 +209,9 @@ fun WisteriaMainApp(
                         }
                     },
                     actions = {
-                        val isPmdd = latestCheckIn?.isPmddWindowActive ?: uiState.latestPulse.isPmddWindowActive
-                        val badgeColor = if (isPmdd) DropCoral else ForestGreenMint
+                        val isOffDay = latestCheckIn?.isOffDay ?: uiState.latestPulse.isOffDay
+                        val hasLearnedPattern = (uiState.morningBrief?.learnedTransitionCount ?: 0) > 0
+                        val badgeColor = if (isOffDay) OffCoral else ForestGreenMint
 
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -226,7 +230,11 @@ fun WisteriaMainApp(
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
                                 Text(
-                                    text = if (isPmdd) "PMDD Pre-Warn" else "Calibrated",
+                                    text = when {
+                                        isOffDay -> "Feels off"
+                                        hasLearnedPattern -> "Pattern noticed"
+                                        else -> "Learning"
+                                    },
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = badgeColor,
@@ -309,7 +317,7 @@ fun WisteriaMainApp(
                         onRunNightShift = { viewModel.runNightShift() },
                         onTriggerFirestoreSync = { viewModel.triggerFirestoreSync() }
                     )
-                    WisteriaTab.CYCLE_RHYTHM -> CyclePatternMemoryScreen(
+                    WisteriaTab.RHYTHM_CARE -> RhythmMemoryScreen(
                         uiState = uiState,
                         memories = memories
                     )

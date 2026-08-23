@@ -1,27 +1,22 @@
 package com.example.domain.agent
 
-import com.example.core.model.GeminiContent
-import com.example.core.model.GeminiGenerateRequest
-import com.example.core.model.GeminiGenerationConfig
-import com.example.core.model.GeminiPart
-import com.example.core.network.GeminiApiService
-import com.example.core.network.GeminiNetworkClient
+import com.example.core.network.CompanionModelService
+import com.example.core.network.FirebaseCompanionModelService
 import com.example.domain.agent.model.AgentExecutionState
 import com.example.domain.agent.model.AgentMessage
 import com.example.domain.agent.model.CareActionData
-import com.example.domain.agent.model.CyclePatternState
-import com.example.domain.agent.model.CycleTexture
+import com.example.domain.agent.model.DailyTexture
 import com.example.domain.agent.model.DailyPulseData
 import com.example.domain.agent.model.MessageSender
 import com.example.domain.agent.model.ToolCallRecord
-import com.example.domain.agent.tools.AdkAgentTool
+import com.example.domain.agent.tools.AgentTool
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
 class DailyCheckInAgent(
-    private val geminiService: GeminiApiService = GeminiNetworkClient.service,
-    private val tools: List<AdkAgentTool>
+    private val modelService: CompanionModelService = FirebaseCompanionModelService(),
+    private val tools: List<AgentTool>
 ) {
 
     suspend fun processUserTurn(
@@ -30,145 +25,73 @@ class DailyCheckInAgent(
         onStateChange: (AgentExecutionState, String) -> Unit,
         onToolExecuted: (ToolCallRecord) -> Unit
     ): AgentMessage = withContext(Dispatchers.IO) {
-        onStateChange(AgentExecutionState.REASONING, "Calibrating cycle texture & PMDD window with Gemini 3.5 Flash...")
+        onStateChange(AgentExecutionState.REASONING, "Reading your self-reported signal...")
 
-        val apiKey = GeminiNetworkClient.getApiKey()
-        val hasValidKey = apiKey.isNotBlank() && !apiKey.contains("MY_GEMINI_API_KEY")
+        val pulse = extractPulseFromInput(userPrompt)
+        val localResponse = generateLocalCompanionResponse(pulse)
+        val modelPrompt = buildModelPrompt(userPrompt, conversationHistory)
 
-        var generatedText: String
-        var reasoningTrace: String
+        val modelResponse = runCatching { modelService.generateReply(modelPrompt) }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?.takeIf(::usesEverydayLanguage)
 
-        if (hasValidKey) {
-            try {
-                val systemPrompt = """
-                    You are Wisteria, a PMDD-aware cycle companion agent for people navigating non-standard, irregular cycle textures.
-
-                    CORE PRINCIPLES:
-                    - Never ask more than one thing at a time.
-                    - Learn THIS user's own cycle texture from their check-in history — never impose a standard 28-day calendar model.
-                    - Spotting is not the same as an actual period. A harder PMDD-style drop window is learned from this user's own patterns, not assumed on a fixed schedule.
-                    - Act BEFORE the crash, not after: suggest gentle rest and hydration before a drop window hits.
-                    - On bad days: ask less, do more. Lower cognitive load. Suggest low-effort meals, comfort content.
-                    - Tone: Warm, grounded, concise (1-2 sentences). Never lecture. Never use clinical jargon unless asked.
-                    - Acknowledge their single-input rating (1-5, color, emoji, or word) with compassionate precision.
-                """.trimIndent()
-
-                val promptHistory = mutableListOf<GeminiContent>()
-                conversationHistory.takeLast(4).forEach { msg ->
-                    val role = if (msg.sender == MessageSender.USER) "user" else "model"
-                    promptHistory.add(GeminiContent(role = role, parts = listOf(GeminiPart(text = msg.text))))
-                }
-                promptHistory.add(GeminiContent(role = "user", parts = listOf(GeminiPart(text = userPrompt))))
-
-                val request = GeminiGenerateRequest(
-                    contents = promptHistory,
-                    systemInstruction = GeminiContent(role = "system", parts = listOf(GeminiPart(text = systemPrompt))),
-                    generationConfig = GeminiGenerationConfig(temperature = 0.6f, maxOutputTokens = 512)
-                )
-
-                val response = geminiService.generateContent(apiKey, request)
-                val rawResponse = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
-
-                if (rawResponse.isNotBlank()) {
-                    generatedText = rawResponse.trim()
-                    reasoningTrace = "Gemini 3.5 Flash analyzed cycle signal. Detected texture & pre-calculated proactive care actions."
-                } else {
-                    val localResult = generateAutonomousCompanionResponse(userPrompt, conversationHistory)
-                    generatedText = localResult.first
-                    reasoningTrace = localResult.second
-                }
-            } catch (e: Exception) {
-                val localResult = generateAutonomousCompanionResponse(userPrompt, conversationHistory)
-                generatedText = localResult.first
-                reasoningTrace = "Gemini 3.5 Flash fallback: executed Google ADK PMDD pattern recognition engine locally."
-            }
+        val generatedText = modelResponse ?: localResponse
+        val reasoningTrace = if (modelResponse != null) {
+            "Firebase AI Logic shaped the companion wording. Local rules saved the everyday texture exactly as reported."
         } else {
-            val localResult = generateAutonomousCompanionResponse(userPrompt, conversationHistory)
-            generatedText = localResult.first
-            reasoningTrace = localResult.second
+            "Local companion wording used. The everyday texture was saved locally; Firebase AI Logic was unavailable or not configured."
         }
 
-        // ADK Tool Execution Phase
-        onStateChange(AgentExecutionState.EXECUTING_TOOL, "Executing Google ADK Pattern & Care Tools...")
+        onStateChange(AgentExecutionState.EXECUTING_TOOL, "Saving your check-in and optional care ideas...")
         val executedTools = mutableListOf<ToolCallRecord>()
-        val extractedPulse = extractPulseFromInput(userPrompt, generatedText)
 
         tools.forEach { tool ->
             when (tool.name) {
                 "RecordSingleInputCheckInTool" -> {
                     val args = mapOf(
                         "inputVal" to userPrompt,
-                        "rating" to extractedPulse.ratingValue.toString(),
-                        "detectedTexture" to extractedPulse.texture.name
+                        "rating" to pulse.ratingValue.toString(),
+                        "detectedTexture" to pulse.texture.name,
+                        "confidence" to pulse.confidenceScore.toString()
                     )
-                    val result = tool.execute(args)
-                    val record = ToolCallRecord(tool.name, args, result.summary, if (result.success) "SUCCESS" else "FAILED")
-                    executedTools.add(record)
-                    onToolExecuted(record)
+                    executeAndRecord(tool, args, executedTools, onToolExecuted)
                 }
-                "DetectPMDDWindowTool" -> {
-                    val isDrop = extractedPulse.isPmddWindowActive || extractedPulse.texture == CycleTexture.MEDS_DROP_WINDOW
-                    val args = mapOf(
-                        "daysInSpotting" to if (extractedPulse.texture == CycleTexture.SPOTTING_PHASE) "7" else "3",
-                        "medsEfficacyDrop" to isDrop.toString(),
-                        "confidence" to "0.93"
-                    )
-                    val result = tool.execute(args)
-                    val record = ToolCallRecord(tool.name, args, result.summary, if (result.success) "SUCCESS" else "FAILED")
-                    executedTools.add(record)
-                    onToolExecuted(record)
-                }
+
                 "TriggerProactiveCareActionTool" -> {
-                    if (extractedPulse.isPmddWindowActive || extractedPulse.ratingValue <= 2) {
+                    if (pulse.ratingValue <= 2 || pulse.isOffDay) {
                         val actionsToQueue = listOf(
-                            Triple("REST_SUPPORT", "Hydrate & Prioritize Rest", "Take a moment to hydrate and ensure you have restful space before the drop hits."),
-                            Triple("COGNITIVE_REDUCTION", "Cognitive Load Shield Active", "Cleared non-urgent tasks; deferring high-demand decisions."),
-                            Triple("LOW_EFFORT_MEAL", "Zero-Effort Comfort Meal", "Warm ginger broth or microwave rice bowl. No prep required.")
+                            Triple(
+                                "REST_SUPPORT",
+                                "Rest or hydrate",
+                                "Optional idea: take a moment for water or a quieter pace."
+                            ),
+                            Triple(
+                                "SIMPLIFY",
+                                "Lower the cognitive load",
+                                "Consider postponing one non-urgent decision if that would help."
+                            ),
+                            Triple(
+                                "LOW_EFFORT_MEAL",
+                                "Choose an easy meal",
+                                "Optional idea: pick a familiar snack or meal with almost no prep."
+                            )
                         )
-                        actionsToQueue.forEach { (type, title, desc) ->
-                            val args = mapOf("type" to type, "title" to title, "description" to desc, "iconName" to "Spa")
-                            val result = tool.execute(args)
-                            val record = ToolCallRecord(tool.name, args, result.summary, if (result.success) "SUCCESS" else "FAILED")
-                            executedTools.add(record)
-                            onToolExecuted(record)
+                        actionsToQueue.forEach { (type, title, description) ->
+                            val args = mapOf(
+                                "type" to type,
+                                "title" to title,
+                                "description" to description,
+                                "iconName" to "Spa"
+                            )
+                            executeAndRecord(tool, args, executedTools, onToolExecuted)
                         }
                     }
-                }
-                "FirestoreSyncTool" -> {
-                    val args = mapOf(
-                        "rating" to extractedPulse.ratingValue.toString(),
-                        "texture" to extractedPulse.texture.name,
-                        "textureLabel" to extractedPulse.textureLabel,
-                        "singleInputResponse" to extractedPulse.singleInputResponse,
-                        "agentAcknowledgment" to extractedPulse.agentAcknowledgment,
-                        "isPmddWindowActive" to extractedPulse.isPmddWindowActive.toString(),
-                        "nerveTonicTaken" to extractedPulse.nerveTonicTaken.toString(),
-                        "lowEffortMealSuggested" to extractedPulse.lowEffortMealSuggested,
-                        "comfortContent" to extractedPulse.comfortContent,
-                        "confidenceScore" to extractedPulse.confidenceScore.toString()
-                    )
-                    try {
-                        val result = tool.execute(args)
-                        val record = ToolCallRecord(tool.name, args, result.summary, if (result.success) "SUCCESS" else "FAILED")
-                        executedTools.add(record)
-                        onToolExecuted(record)
-                    } catch (e: Exception) {
-                        val record = ToolCallRecord(tool.name, args, "Firestore sync failed: ${e.message ?: "unknown error"}. Check-in was still saved locally.", "FAILED")
-                        executedTools.add(record)
-                        onToolExecuted(record)
-                    }
-                }
-                "CloudRunWorkflowTool" -> {
-                    val args = mapOf("workflowType" to "pmdd_pattern_analysis")
-                    val result = tool.execute(args)
-                    val record = ToolCallRecord(tool.name, args, result.summary, if (result.success) "SUCCESS" else "FAILED")
-                    executedTools.add(record)
-                    onToolExecuted(record)
                 }
             }
         }
 
-        onStateChange(AgentExecutionState.COMPLETED, "Pattern learning updated. Wisteria is calibrated.")
+        onStateChange(AgentExecutionState.COMPLETED, "Check-in saved. Pattern learning continues.")
 
         AgentMessage(
             id = UUID.randomUUID().toString(),
@@ -176,117 +99,175 @@ class DailyCheckInAgent(
             text = generatedText,
             thoughtTrace = reasoningTrace,
             toolInvocations = executedTools,
-            structuredPulse = extractedPulse
+            structuredPulse = pulse
         )
     }
 
-    private fun generateAutonomousCompanionResponse(userPrompt: String, history: List<AgentMessage>): Pair<String, String> {
-        val lower = userPrompt.lowercase().trim()
-
-        val text = when {
-            lower == "1" || lower.contains("awful") || lower.contains("crying") || lower.contains("drop") || lower.contains("crash") -> {
-                "I hear you. The fog is heavy today. I've lowered all demands and queued your comfort list. Have you had a chance to rest or hydrate?"
-            }
-            lower == "2" || lower.contains("tired") || lower.contains("foggy") || lower.contains("spotting") || lower.contains("hard") -> {
-                "Logged. Your harder window might be approaching. Let's take today extra gently—maybe some extra rest?"
-            }
-            lower == "3" || lower.contains("okay") || lower.contains("fine") || lower.contains("managing") -> {
-                "Got it. Holding your baseline. Let me know if you need anything, otherwise you're done for today."
-            }
-            lower == "4" || lower == "5" || lower.contains("good") || lower.contains("alive") || lower.contains("great") -> {
-                "Wonderful. You're in your 'alive' window right now. Soak in this clarity and momentum."
-            }
-            lower.contains("rest") || lower.contains("water") || lower.contains("hydrate") -> {
-                "Rest and hydration logged. That's going to soften the drop. Resting now is productive work."
-            }
-            else -> {
-                "Logged in 2 seconds. Wisteria has updated your cycle texture map without imposing calendar math."
-            }
+    private suspend fun executeAndRecord(
+        tool: AgentTool,
+        args: Map<String, String>,
+        records: MutableList<ToolCallRecord>,
+        onToolExecuted: (ToolCallRecord) -> Unit
+    ) {
+        val record = try {
+            val result = tool.execute(args)
+            ToolCallRecord(
+                toolName = tool.name,
+                arguments = args,
+                resultSummary = result.summary,
+                status = if (result.success) "SUCCESS" else "FAILED"
+            )
+        } catch (error: Exception) {
+            ToolCallRecord(
+                toolName = tool.name,
+                arguments = args,
+                resultSummary = "${tool.name} failed: ${error.message ?: "unknown error"}",
+                status = "FAILED"
+            )
         }
-
-        val trace = "ADK Pattern Reasoning: Ingested single-input '$userPrompt'. Evaluated against this user's learned spotting & drop-window profile. Triggered proactive care actions without cognitive burden."
-        return Pair(text, trace)
+        records += record
+        onToolExecuted(record)
     }
 
-    private fun extractPulseFromInput(userPrompt: String, agentResponse: String): DailyPulseData {
-        val lower = userPrompt.lowercase().trim()
-
-        val (rating, texture) = when {
-            lower == "1" || lower.contains("crash") || lower.contains("drop") || lower.contains("awful") -> {
-                Pair(1, CycleTexture.MEDS_DROP_WINDOW)
-            }
-            lower == "2" || lower.contains("spotting") || lower.contains("foggy") || lower.contains("hard") -> {
-                Pair(2, CycleTexture.SPOTTING_PHASE)
-            }
-            lower == "3" || lower.contains("okay") || lower.contains("fine") -> {
-                Pair(3, CycleTexture.FEELING_GOOD)
-            }
-            lower == "4" -> {
-                Pair(4, CycleTexture.FEELING_GOOD)
-            }
-            lower == "5" || lower.contains("alive") || lower.contains("great") -> {
-                Pair(5, CycleTexture.FEELING_GOOD)
-            }
-            lower.contains("period") || lower.contains("bleeding") -> {
-                Pair(2, CycleTexture.ACTUAL_PERIOD)
-            }
-            else -> {
-                val parsedNum = userPrompt.filter { it.isDigit() }.toIntOrNull()
-                if (parsedNum != null && parsedNum in 1..5) {
-                    Pair(parsedNum, if (parsedNum <= 2) CycleTexture.MEDS_DROP_WINDOW else CycleTexture.FEELING_GOOD)
-                } else {
-                    Pair(3, CycleTexture.FEELING_GOOD)
-                }
-            }
+    private fun buildModelPrompt(userPrompt: String, history: List<AgentMessage>): String {
+        val priorHistory = if (
+            history.lastOrNull()?.sender == MessageSender.USER &&
+            history.lastOrNull()?.text == userPrompt
+        ) {
+            history.dropLast(1)
+        } else {
+            history
         }
 
-        val isPmdd = texture == CycleTexture.MEDS_DROP_WINDOW || rating <= 2
-        val careActions = if (isPmdd) {
+        val transcript = priorHistory.takeLast(4).joinToString("\n") { message ->
+            val role = if (message.sender == MessageSender.USER) "User" else "Wisteria"
+            "$role: ${message.text}"
+        }
+
+        return """
+            You are Wisteria, a warm, concise daily check-in companion.
+
+            Safety and truth rules:
+            - Reply in one or two sentences and ask at most one question.
+            - Use only everyday feeling words: bright, steady, heavy, or off.
+            - Never turn a feeling into a body phase, condition, cause, or certainty.
+            - Never claim Wisteria changed alerts, tasks, contacts, or device settings.
+            - Offer gentle options, never instructions.
+            - Do not mention implementation details.
+
+            Recent conversation:
+            ${transcript.ifBlank { "No earlier messages." }}
+
+            Current check-in: $userPrompt
+        """.trimIndent()
+    }
+
+    private fun generateLocalCompanionResponse(pulse: DailyPulseData): String = when {
+        pulse.isOffDay ->
+            "I hear you—today feels off. Want one low-effort idea, or are you done for today?"
+        pulse.texture == DailyTexture.HEAVY ->
+            "Heavy is logged. You’re done for today unless one small idea would help."
+        pulse.texture == DailyTexture.STEADY ->
+            "Steady is logged. That’s enough for today."
+        pulse.texture == DailyTexture.BRIGHT ->
+            "Bright is logged. I’m glad there’s a little more room in today."
+        else ->
+            "Logged without adding a label. That’s enough for today."
+    }
+
+    private fun usesEverydayLanguage(text: String): Boolean {
+        val lower = text.lowercase()
+        val blockedTerms = listOf(
+            "pmdd",
+            "pms",
+            "follicular",
+            "luteal",
+            "ovulation",
+            "menstrual",
+            "medication",
+            "diagnosis",
+            "spotting",
+            "period"
+        )
+        return blockedTerms.none(lower::contains)
+    }
+
+    private fun extractPulseFromInput(userPrompt: String): DailyPulseData {
+        val lower = userPrompt.lowercase().trim()
+        val explicitRating = Regex("(?<!\\d)([1-5])(?!\\d)")
+            .find(lower)
+            ?.groupValues
+            ?.get(1)
+            ?.toIntOrNull()
+
+        val rating = explicitRating ?: when {
+            listOf("awful", "crying", "crash").any(lower::contains) -> 1
+            listOf("tired", "foggy", "heavy", "hard").any(lower::contains) -> 2
+            listOf("okay", "fine", "managing", "baseline").any(lower::contains) -> 3
+            listOf("steady", "clear").any(lower::contains) -> 4
+            listOf("alive", "great", "radiant", "good").any(lower::contains) -> 5
+            else -> 3
+        }
+
+        val texture = when {
+            listOf("off", "awful", "crying", "crash").any(lower::contains) || explicitRating == 1 -> DailyTexture.OFF
+            listOf("tired", "foggy", "heavy", "hard").any(lower::contains) || explicitRating == 2 -> DailyTexture.HEAVY
+            listOf("okay", "fine", "managing", "baseline", "steady").any(lower::contains) || explicitRating == 3 -> DailyTexture.STEADY
+            listOf("alive", "clear", "great", "radiant", "good", "bright").any(lower::contains) || explicitRating == 4 || explicitRating == 5 -> DailyTexture.BRIGHT
+            else -> DailyTexture.UNKNOWN
+        }
+
+        val isOffDay = texture == DailyTexture.OFF
+        val needsSupport = texture == DailyTexture.OFF || texture == DailyTexture.HEAVY
+        val careActions = if (needsSupport) {
             listOf(
                 CareActionData(
                     id = "care_rest_${System.currentTimeMillis()}",
-                    title = "Hydrate & Prioritize Rest",
+                    title = "Rest or hydrate",
                     type = "REST_SUPPORT",
-                    description = "Take a moment to hydrate and ensure you have restful space before the drop hits.",
-                    isAutoTriggered = true,
+                    description = "Optional idea: take a moment for water or a quieter pace.",
                     iconName = "Spa"
                 ),
                 CareActionData(
                     id = "care_meal_${System.currentTimeMillis()}",
-                    title = "Zero-Effort Comfort Meal",
+                    title = "Choose an easy meal",
                     type = "LOW_EFFORT_MEAL",
-                    description = "Warm broth or microwave rice bowl. No cooking decisions.",
-                    isAutoTriggered = true,
+                    description = "Optional idea: pick a familiar snack or meal with almost no prep.",
                     iconName = "Restaurant"
                 ),
                 CareActionData(
-                    id = "care_cog_${System.currentTimeMillis()}",
-                    title = "Cognitive Shield Active",
-                    type = "COGNITIVE_REDUCTION",
-                    description = "Muted non-essential alerts & postponed high-stakes decisions.",
-                    isAutoTriggered = true,
+                    id = "care_cognitive_${System.currentTimeMillis()}",
+                    title = "Lower the cognitive load",
+                    type = "SIMPLIFY",
+                    description = "Consider postponing one non-urgent decision if that would help.",
                     iconName = "Shield"
                 )
             )
-        } else emptyList()
+        } else {
+            emptyList()
+        }
+
+        val textureLabel = when (texture) {
+            DailyTexture.BRIGHT -> "Bright"
+            DailyTexture.STEADY -> "Steady"
+            DailyTexture.HEAVY -> "Heavy"
+            DailyTexture.OFF -> "Off"
+            DailyTexture.UNKNOWN -> "Unlabeled"
+        }
 
         return DailyPulseData(
             ratingValue = rating,
             texture = texture,
-            textureLabel = when (texture) {
-                CycleTexture.FEELING_GOOD -> "Alive & Baseline Okay"
-                CycleTexture.SPOTTING_PHASE -> "Spotting Window"
-                CycleTexture.ACTUAL_PERIOD -> "Actual Period Bleeding"
-                CycleTexture.MEDS_DROP_WINDOW -> "Drop Window (PMDD)"
-                CycleTexture.UNKNOWN_CALIBRATING -> "Calibrating to You"
-            },
+            textureLabel = textureLabel,
             singleInputResponse = userPrompt,
-            agentAcknowledgment = if (isPmdd) "Your harder window might be coming. Taking a moment for rest?" else "Logged in 3 seconds.",
-            nerveTonicTaken = lower.contains("rest") || lower.contains("water") || lower.contains("hydrate"),
-            lowEffortMealSuggested = "Warm ginger bone broth or comforting soup",
-            comfortContent = "Quiet audio, low light",
-            isPmddWindowActive = isPmdd,
-            confidenceScore = 0.94f,
+            agentAcknowledgment = generateLocalCompanionResponse(
+                DailyPulseData(ratingValue = rating, texture = texture, isOffDay = isOffDay)
+            ),
+            restOrHydrationLogged = listOf("rest", "water", "hydrate", "hydrated").any(lower::contains),
+            lowEffortMealSuggested = "Simple meal or snack",
+            comfortContent = "Quiet audio or low light",
+            isOffDay = isOffDay,
+            confidenceScore = if (texture == DailyTexture.UNKNOWN) 0f else 1f,
             careActions = careActions
         )
     }

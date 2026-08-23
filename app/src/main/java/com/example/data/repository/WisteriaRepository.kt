@@ -1,52 +1,37 @@
 package com.example.data.repository
 
-import com.example.data.cloud.CloudRunJobExecution
-import com.example.data.cloud.CloudRunWorkflowService
-import com.example.data.cloud.CloudRunWorkflowServiceImpl
 import com.example.data.cloud.FirestoreSyncRecord
 import com.example.data.cloud.FirestoreSyncService
 import com.example.data.cloud.FirestoreSyncServiceImpl
+import com.example.data.cloud.LocalNightShiftService
+import com.example.data.cloud.NightShiftExecution
+import com.example.data.cloud.NightShiftService
 import com.example.data.local.dao.CheckInDao
 import com.example.data.local.entity.CareActionEntity
 import com.example.data.local.entity.AgentMemoryEntity
 import com.example.data.local.entity.DailyCheckInEntity
 import com.example.domain.agent.CheckInHistoryEntry
 import com.example.domain.agent.DailyCheckInAgent
-import com.example.domain.agent.model.CareActionData
-import com.example.domain.agent.model.CyclePatternState
-import com.example.domain.agent.model.CycleTexture
+import com.example.domain.agent.model.DailyTexture
 import com.example.domain.agent.model.DailyPulseData
-import com.example.domain.agent.tools.CloudRunWorkflowTool
-import com.example.domain.agent.tools.DetectPMDDWindowTool
-import com.example.domain.agent.tools.FirestoreSyncTool
 import com.example.domain.agent.tools.RecordSingleInputCheckInTool
 import com.example.domain.agent.tools.TriggerProactiveCareActionTool
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 class WisteriaRepository(
     private val checkInDao: CheckInDao,
     private val firestoreService: FirestoreSyncService = FirestoreSyncServiceImpl(),
-    private val cloudRunService: CloudRunWorkflowService = CloudRunWorkflowServiceImpl()
+    private val nightShiftService: NightShiftService = LocalNightShiftService()
 ) {
 
     private val activeTools = listOf(
         RecordSingleInputCheckInTool { pulse ->
             saveDailyCheckIn(pulse)
-        },
-        DetectPMDDWindowTool { pattern ->
-            checkInDao.insertMemory(
-                AgentMemoryEntity(
-                    memoryKey = "pmdd_pattern_state",
-                    memoryValue = "${pattern.detectedTexture.name}|DaysUntilDrop:${pattern.daysUntilDropWindow}|Confidence:${pattern.pmddConfidence}|Insight:${pattern.summaryInsight}",
-                    category = "CYCLE_PATTERN"
-                )
-            )
         },
         TriggerProactiveCareActionTool { careAction ->
             val todayStr = getTodayDateString()
@@ -62,15 +47,6 @@ class WisteriaRepository(
                     iconName = careAction.iconName
                 )
             )
-        },
-        FirestoreSyncTool { pulse ->
-            val record = firestoreService.syncDailyCheckIn(currentUserId(), pulse)
-            markTodaysCheckInSynced(record.documentPath)
-            record.documentPath
-        },
-        CloudRunWorkflowTool { workflowType ->
-            val job = cloudRunService.dispatchWorkflowJob(workflowType, mapOf("triggeredBy" to "Wisteria_Agent"), loadCheckInHistory())
-            job.jobId
         }
     )
 
@@ -98,14 +74,14 @@ class WisteriaRepository(
             singleInputResponse = pulse.singleInputResponse,
             detectedTexture = pulse.texture.name,
             agentAcknowledgment = pulse.agentAcknowledgment,
-            isPmddWindowActive = pulse.isPmddWindowActive,
-            nerveTonicTaken = pulse.nerveTonicTaken,
+            isOffDay = pulse.isOffDay,
+            restOrHydrationLogged = pulse.restOrHydrationLogged,
             lowEffortMeal = pulse.lowEffortMealSuggested,
             comfortContent = pulse.comfortContent,
             confidenceScore = pulse.confidenceScore,
             syncStatus = "PENDING_SYNC",
             firestoreDocPath = null,
-            cloudRunJobId = "crun-agent-auto"
+            nightShiftRunId = null
         )
         checkInDao.insertCheckIn(entity)
 
@@ -136,23 +112,91 @@ class WisteriaRepository(
         )
     }
 
-    suspend fun triggerManualCloudRunSync(): CloudRunJobExecution {
-        return cloudRunService.dispatchWorkflowJob("pmdd_pattern_analysis", mapOf("source" to "CompanionUI"), loadCheckInHistory())
+    /** Runs deterministic pattern analysis now, on demand, against local history. */
+    suspend fun runNightShift(): NightShiftExecution {
+        val execution = nightShiftService.run(loadCheckInHistory())
+        val brief = execution.morningBrief
+        checkInDao.insertMemory(
+            AgentMemoryEntity(
+                memoryKey = "night_shift_pattern",
+                memoryValue = "${brief.headline} | samples=${brief.sampleSize} | confidence=${"%.2f".format(brief.confidence)} | daysUntilOff=${brief.daysUntilOff ?: "unknown"}",
+                category = "DAILY_PATTERN"
+            )
+        )
+        return execution
     }
 
-    /** Runs the real overnight pattern worker now, on demand, against local check-in history. */
-    suspend fun runNightShift(): CloudRunJobExecution {
-        return cloudRunService.dispatchWorkflowJob("night_shift", mapOf("source" to "CompanionUI"), loadCheckInHistory())
-    }
-
-    suspend fun triggerManualFirestoreSync(pulse: DailyPulseData): FirestoreSyncRecord {
-        val record = firestoreService.syncDailyCheckIn(currentUserId(), pulse)
+    suspend fun triggerManualFirestoreSync(): FirestoreSyncRecord {
+        val latest = checkInDao.getLatestCheckInFlow().first()
+            ?: error("Complete a check-in before syncing")
+        check(latest.syncStatus != "DEMO_LOCAL_ONLY") {
+            "Demo data stays local; complete a real check-in before syncing"
+        }
+        val texture = runCatching { DailyTexture.valueOf(latest.detectedTexture) }
+            .getOrDefault(DailyTexture.UNKNOWN)
+        val pulse = DailyPulseData(
+            ratingValue = latest.ratingValue,
+            texture = texture,
+            textureLabel = texture.name.lowercase().replaceFirstChar { it.uppercase() },
+            singleInputResponse = latest.singleInputResponse,
+            agentAcknowledgment = latest.agentAcknowledgment,
+            restOrHydrationLogged = latest.restOrHydrationLogged,
+            lowEffortMealSuggested = latest.lowEffortMeal,
+            comfortContent = latest.comfortContent,
+            isOffDay = latest.isOffDay,
+            confidenceScore = latest.confidenceScore
+        )
+        val record = firestoreService.syncDailyCheckIn(pulse)
         markTodaysCheckInSynced(record.documentPath)
         return record
     }
 
-    suspend fun getCycleMemorySnapshot(): List<Map<String, Any>> {
-        return firestoreService.fetchCycleMemorySnapshot(currentUserId())
+    suspend fun getTextureSummary(): List<Map<String, Any>> {
+        return firestoreService.fetchTextureSummary()
+    }
+
+    /** Inserts clearly labeled, local-only sample check-ins for the hackathon demo. */
+    suspend fun loadDemoHistory(): Int {
+        val textures = listOf(
+            DailyTexture.HEAVY,
+            DailyTexture.HEAVY,
+            DailyTexture.HEAVY,
+            DailyTexture.OFF,
+            DailyTexture.OFF,
+            DailyTexture.BRIGHT,
+            DailyTexture.BRIGHT,
+            DailyTexture.HEAVY,
+            DailyTexture.HEAVY,
+            DailyTexture.HEAVY
+        )
+        val start = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -(textures.size - 1)) }
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+        textures.forEachIndexed { index, texture ->
+            val day = (start.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, index) }
+            val date = formatter.format(day.time)
+            val rating = when (texture) {
+                DailyTexture.OFF -> 1
+                DailyTexture.HEAVY -> 2
+                DailyTexture.STEADY -> 3
+                DailyTexture.BRIGHT -> 5
+                DailyTexture.UNKNOWN -> 3
+            }
+            checkInDao.insertCheckIn(
+                DailyCheckInEntity(
+                    id = "demo_checkin_$date",
+                    date = date,
+                    timestamp = day.timeInMillis,
+                    ratingValue = rating,
+                    singleInputResponse = "Demo: ${texture.name.lowercase()}",
+                    detectedTexture = texture.name,
+                    agentAcknowledgment = "Demo check-in",
+                    isOffDay = texture == DailyTexture.OFF,
+                    syncStatus = "DEMO_LOCAL_ONLY"
+                )
+            )
+        }
+        return textures.size
     }
 
     fun getTodayDateString(): String {
@@ -165,19 +209,12 @@ class WisteriaRepository(
                 date = entity.date,
                 rating = entity.ratingValue,
                 texture = try {
-                    CycleTexture.valueOf(entity.detectedTexture)
+                    DailyTexture.valueOf(entity.detectedTexture)
                 } catch (e: Exception) {
-                    CycleTexture.UNKNOWN_CALIBRATING
+                    DailyTexture.UNKNOWN
                 },
                 inputText = entity.singleInputResponse
             )
         }
-    }
-
-    /** Falls back to "anonymous" until Firebase anonymous sign-in has completed at least once. */
-    private fun currentUserId(): String = try {
-        FirebaseAuth.getInstance().currentUser?.uid ?: "anonymous"
-    } catch (e: Exception) {
-        "anonymous"
     }
 }

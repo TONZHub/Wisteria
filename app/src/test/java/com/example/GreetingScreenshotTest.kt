@@ -1,8 +1,9 @@
 package com.example
 
-import androidx.compose.material3.Text
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import com.example.domain.agent.model.DailyTexture
+import com.example.ui.components.DailyTextureGauge
 import com.example.ui.theme.MyApplicationTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -21,10 +22,17 @@ class GreetingScreenshotTest {
   @get:Rule val composeTestRule = createComposeRule()
 
   @Test
-  fun greeting_screenshot() {
-    composeTestRule.setContent { MyApplicationTheme { Text("Wisteria Daily Check-In Agent") } }
+  fun everyday_texture_card_screenshot() {
+    composeTestRule.setContent {
+      MyApplicationTheme {
+        DailyTextureGauge(
+          texture = DailyTexture.OFF,
+          rating = 1,
+          isOffDay = true
+        )
+      }
+    }
 
-    composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
+    composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/everyday_texture.png")
   }
 }
-

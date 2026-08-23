@@ -3,8 +3,8 @@ package com.example.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.cloud.CloudRunJobExecution
 import com.example.data.cloud.FirestoreSyncRecord
+import com.example.data.cloud.NightShiftExecution
 import com.example.data.local.WisteriaDatabase
 import com.example.data.local.entity.CareActionEntity
 import com.example.data.local.entity.AgentMemoryEntity
@@ -13,8 +13,7 @@ import com.example.data.repository.WisteriaRepository
 import com.example.domain.agent.model.AgentExecutionState
 import com.example.domain.agent.model.AgentMessage
 import com.example.domain.agent.model.CareActionData
-import com.example.domain.agent.model.CyclePatternState
-import com.example.domain.agent.model.CycleTexture
+import com.example.domain.agent.model.DailyTexture
 import com.example.domain.agent.model.DailyPulseData
 import com.example.domain.agent.model.MessageSender
 import com.example.domain.agent.model.ToolCallRecord
@@ -31,13 +30,12 @@ import java.util.UUID
 data class CheckInUiState(
     val messages: List<AgentMessage> = emptyList(),
     val agentState: AgentExecutionState = AgentExecutionState.IDLE,
-    val agentStatusMessage: String = "Wisteria is calibrated & ready",
+    val agentStatusMessage: String = "Ready for a check-in",
     val latestPulse: DailyPulseData = DailyPulseData(),
-    val patternState: CyclePatternState = CyclePatternState(),
     val executedTools: List<ToolCallRecord> = emptyList(),
-    val cloudRunLogs: List<CloudRunJobExecution> = emptyList(),
+    val nightShiftRuns: List<NightShiftExecution> = emptyList(),
     val firestoreSyncLogs: List<FirestoreSyncRecord> = emptyList(),
-    val cyclePhases: List<Map<String, Any>> = emptyList(),
+    val textureSummary: List<Map<String, Any>> = emptyList(),
     val morningBrief: MorningBrief? = null,
     val isNightShiftRunning: Boolean = false,
     val isAgentActive: Boolean = false,
@@ -80,16 +78,15 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         _uiState.value = _uiState.value.copy(
             messages = listOf(initialAgentMessage)
         )
-        loadCycleMemory()
     }
 
-    private fun loadCycleMemory() {
+    private fun loadTextureSummary() {
         viewModelScope.launch {
             try {
-                val phases = repository.getCycleMemorySnapshot()
-                _uiState.value = _uiState.value.copy(cyclePhases = phases)
+                val summary = repository.getTextureSummary()
+                _uiState.value = _uiState.value.copy(textureSummary = summary)
             } catch (e: Exception) {
-                // Firestore not reachable/configured yet - screens fall back to their own defaults.
+                // Firestore is optional. Local check-ins and Night Shift remain available.
             }
         }
     }
@@ -102,9 +99,9 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
             )
             val bootSteps = listOf(
                 "initializing pattern recognition...",
-                "connecting to Gemini 3.5 Flash & Google ADK...",
-                "retrieving your irregular cycle timeline from Firestore...",
-                "calibrating to you...",
+                "checking optional Firebase services...",
+                "opening your local daily timeline...",
+                "ready to keep learning...",
                 "Wisteria is ready."
             )
             for (step in bootSteps) {
@@ -145,7 +142,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         _uiState.value = _uiState.value.copy(
             messages = updatedMessages,
             agentState = AgentExecutionState.REASONING,
-            agentStatusMessage = "Calibrating pattern with Gemini 3.5 Flash...",
+            agentStatusMessage = "Reading your check-in...",
             isAgentActive = true
         )
 
@@ -169,7 +166,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
             _uiState.value = _uiState.value.copy(
                 messages = _uiState.value.messages + agentResponse,
                 agentState = AgentExecutionState.IDLE,
-                agentStatusMessage = "Wisteria is calibrated & ready",
+                agentStatusMessage = "Ready for a check-in",
                 latestPulse = newPulse,
                 isAgentActive = false
             )
@@ -186,18 +183,18 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    /** Runs the real Night Shift pattern worker against local check-in history. */
+    /** Runs Night Shift against local check-in history only when requested. */
     fun runNightShift() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isNightShiftRunning = true, agentStatusMessage = "Running Night Shift...")
             try {
                 val job = repository.runNightShift()
-                val logs = _uiState.value.cloudRunLogs + job
+                val logs = _uiState.value.nightShiftRuns + job
                 _uiState.value = _uiState.value.copy(
-                    cloudRunLogs = logs,
+                    nightShiftRuns = logs,
                     morningBrief = job.morningBrief,
                     isNightShiftRunning = false,
-                    agentStatusMessage = job.morningBrief?.headline ?: "Night Shift complete."
+                    agentStatusMessage = job.morningBrief.headline
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -208,21 +205,41 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    /** Kept for back-compat with older call sites; Night Shift is now the real Cloud Run worker. */
-    fun triggerCloudRunWorkflow(workflowType: String = "night_shift") {
-        runNightShift()
+    fun loadDemoHistory() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isNightShiftRunning = true,
+                agentStatusMessage = "Loading 10 local demo days..."
+            )
+            try {
+                val count = repository.loadDemoHistory()
+                val run = repository.runNightShift()
+                _uiState.value = _uiState.value.copy(
+                    nightShiftRuns = _uiState.value.nightShiftRuns + run,
+                    morningBrief = run.morningBrief,
+                    isNightShiftRunning = false,
+                    agentStatusMessage = "$count demo days loaded · ${run.morningBrief.headline}"
+                )
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isNightShiftRunning = false,
+                    agentStatusMessage = "Could not load demo history: ${error.message ?: "unknown error"}"
+                )
+            }
+        }
     }
 
     fun triggerFirestoreSync() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(agentStatusMessage = "Syncing cycle timeline to Firestore...")
+            _uiState.value = _uiState.value.copy(agentStatusMessage = "Syncing the daily timeline to Firestore...")
             try {
-                val record = repository.triggerManualFirestoreSync(_uiState.value.latestPulse)
+                val record = repository.triggerManualFirestoreSync()
                 val logs = _uiState.value.firestoreSyncLogs + record
                 _uiState.value = _uiState.value.copy(
                     firestoreSyncLogs = logs,
                     agentStatusMessage = "Firestore synced to ${record.documentPath}"
                 )
+                loadTextureSummary()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     agentStatusMessage = "Firestore sync failed: ${e.message ?: "check google-services.json is configured"}"

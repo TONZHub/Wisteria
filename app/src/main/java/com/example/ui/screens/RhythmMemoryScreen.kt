@@ -36,20 +36,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.AgentMemoryEntity
-import com.example.ui.theme.DropCoral
+import com.example.ui.theme.OffCoral
 import com.example.ui.theme.ForestGreenAccent
 import com.example.ui.theme.ForestGreenMint
-import com.example.ui.theme.SpottingRose
+import com.example.ui.theme.HeavyRose
 import com.example.ui.theme.WisteriaLavender
 import com.example.ui.viewmodel.CheckInUiState
 
 @Composable
-fun CyclePatternMemoryScreen(
+fun RhythmMemoryScreen(
     uiState: CheckInUiState,
     memories: List<AgentMemoryEntity>,
     modifier: Modifier = Modifier
 ) {
-    val phases = uiState.cyclePhases
+    val entries = uiState.textureSummary
 
     LazyColumn(
         modifier = modifier
@@ -95,13 +95,13 @@ fun CyclePatternMemoryScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = "Your Cycle Texture",
+                                text = "Your Everyday Rhythm",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "Adapted to you • Never 28-day textbook math",
+                                    text = "Built only from your own check-ins",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = ForestGreenMint,
                                         fontSize = 11.sp
@@ -119,7 +119,7 @@ fun CyclePatternMemoryScreen(
                             color = ForestGreenAccent.copy(alpha = 0.2f)
                         ) {
                             Text(
-                                text = "Calibrated",
+                                text = if ((uiState.morningBrief?.learnedTransitionCount ?: 0) > 0) "Pattern noticed" else "Learning",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = ForestGreenMint,
                                     fontWeight = FontWeight.Bold,
@@ -135,23 +135,43 @@ fun CyclePatternMemoryScreen(
 
         item {
             Text(
-                text = "Learned Rhythm Blueprint",
+                text = "Saved Texture Counts",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
 
-        // 4 Phases
-        items(phases) { phase ->
-            val phaseTitle = phase["phase"] as? String ?: "Cycle Phase"
-            val duration = phase["duration"] as? String ?: "~"
-            val texture = phase["texture"] as? String ?: "Unique texture"
-            val signal = phase["patternSignal"] as? String ?: "Learned signal"
+        if (entries.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    )
+                ) {
+                    Text(
+                        text = "Nothing is synced yet. Your check-ins stay on this device until you choose Sync Firestore.",
+                        style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                        modifier = Modifier.padding(14.dp)
+                    )
+                }
+            }
+        }
+
+        items(entries) { entry ->
+            val textureTitle = entry["textureTitle"] as? String ?: "Everyday texture"
+            val duration = entry["duration"] as? String ?: "~"
+            val texture = (entry["texture"] as? String)
+                ?.lowercase()
+                ?.replaceFirstChar { it.uppercase() }
+                ?: "Unlabeled"
+            val signal = entry["patternSignal"] as? String ?: "Saved from your check-ins"
 
             val badgeColor = when {
-                phaseTitle.contains("Spotting") -> SpottingRose
-                phaseTitle.contains("Period") -> DropCoral
-                phaseTitle.contains("Alive") -> ForestGreenMint
+                textureTitle.contains("Heavy") -> HeavyRose
+                textureTitle.contains("Off") -> OffCoral
+                textureTitle.contains("Bright") -> ForestGreenMint
                 else -> WisteriaLavender
             }
 
@@ -188,7 +208,7 @@ fun CyclePatternMemoryScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = phaseTitle,
+                                    text = textureTitle,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -225,7 +245,7 @@ fun CyclePatternMemoryScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "• Care Rule: $signal",
+                        text = signal,
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
@@ -236,11 +256,11 @@ fun CyclePatternMemoryScreen(
             }
         }
 
-        // Room Database Persisted Agent Memory
+        // Pattern notes saved by local Night Shift runs.
         if (memories.isNotEmpty()) {
             item {
                 Text(
-                    text = "Saved Companion Memory",
+                    text = "Saved Pattern Notes",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(top = 10.dp)
                 )

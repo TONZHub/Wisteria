@@ -19,11 +19,10 @@ val ForestGreenSage = Color(0xFF52B788)
 val ForestGreenMint = Color(0xFF74C69D)
 
 // Status & Texture accents
-val SpottingRose = Color(0xFFC97A7E)
-val PeriodCrimson = Color(0xFF9E2A2B)
+val HeavyRose = Color(0xFFC97A7E)
 val CalmTeal = Color(0xFF48CAE4)
 val WarningAmber = Color(0xFFFFB703)
-val DropCoral = Color(0xFFF72585)
+val OffCoral = Color(0xFFF72585)
 
 // Surfaces & Terminal Neutrals
 val DarkBackground = Color(0xFF0D0614)

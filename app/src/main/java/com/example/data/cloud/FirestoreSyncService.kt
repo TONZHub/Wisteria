@@ -18,8 +18,8 @@ data class FirestoreSyncRecord(
 )
 
 interface FirestoreSyncService {
-    suspend fun syncDailyCheckIn(userId: String, pulse: DailyPulseData): FirestoreSyncRecord
-    suspend fun fetchCycleMemorySnapshot(userId: String): List<Map<String, Any>>
+    suspend fun syncDailyCheckIn(pulse: DailyPulseData): FirestoreSyncRecord
+    suspend fun fetchTextureSummary(): List<Map<String, Any>>
 }
 
 /**
@@ -37,25 +37,18 @@ class FirestoreSyncServiceImpl(
     private val firestore: FirebaseFirestore by lazy(firestoreProvider)
     private val auth: FirebaseAuth by lazy(authProvider)
 
-    private val defaultPhaseBlueprint = listOf(
-        mapOf("phase" to "Spotting Window", "duration" to "learned", "texture" to "Irregular baseline spotting", "patternSignal" to "Spotting is tracked separately from an actual period"),
-        mapOf("phase" to "Period Window", "duration" to "learned", "texture" to "Standard bleeding", "patternSignal" to "Follows the spotting window"),
-        mapOf("phase" to "Alive Window", "duration" to "learned", "texture" to "High energy, clarity", "patternSignal" to "Baseline optimal wellness"),
-        mapOf("phase" to "Drop Window (PMDD)", "duration" to "learned", "texture" to "Brain fog / harder window", "patternSignal" to "Harder window; rest and low cognitive load recommended")
-    )
-
-    private suspend fun ensureSignedIn() {
-        if (auth.currentUser == null) {
-            auth.signInAnonymously().await()
-        }
+    private suspend fun signedInUserId(): String {
+        auth.currentUser?.uid?.let { return it }
+        return auth.signInAnonymously().await().user?.uid
+            ?: error("Firebase anonymous sign-in did not return a user")
     }
 
-    override suspend fun syncDailyCheckIn(userId: String, pulse: DailyPulseData): FirestoreSyncRecord {
-        ensureSignedIn()
+    override suspend fun syncDailyCheckIn(pulse: DailyPulseData): FirestoreSyncRecord {
+        val userId = signedInUserId()
 
         val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val docRef = firestore.collection("users").document(userId)
-            .collection("cycle_timeline").document(dateStr)
+            .collection("daily_timeline").document(dateStr)
 
         val payload = mapOf(
             "ratingValue" to pulse.ratingValue,
@@ -63,8 +56,8 @@ class FirestoreSyncServiceImpl(
             "textureLabel" to pulse.textureLabel,
             "singleInputResponse" to pulse.singleInputResponse,
             "agentAcknowledgment" to pulse.agentAcknowledgment,
-            "isPmddWindowActive" to pulse.isPmddWindowActive,
-            "nerveTonicTaken" to pulse.nerveTonicTaken,
+            "isOffDay" to pulse.isOffDay,
+            "restOrHydrationLogged" to pulse.restOrHydrationLogged,
             "lowEffortMealSuggested" to pulse.lowEffortMealSuggested,
             "comfortContent" to pulse.comfortContent,
             "confidenceScore" to pulse.confidenceScore,
@@ -72,23 +65,44 @@ class FirestoreSyncServiceImpl(
         )
         docRef.set(payload).await()
 
-        val payloadPreview = "Rating: ${pulse.ratingValue}/5, Texture: ${pulse.texture.name}, PMDD Active: ${pulse.isPmddWindowActive}, Rest Taken: ${pulse.nerveTonicTaken}"
+        val payloadPreview = "Rating: ${pulse.ratingValue}/5, Texture: ${pulse.texture.name}, Off: ${pulse.isOffDay}"
 
         return FirestoreSyncRecord(
             documentPath = docRef.path,
-            collection = "cycle_timeline",
+            collection = "daily_timeline",
             status = "PERSISTED_FIRESTORE",
             payloadPreview = payloadPreview
         )
     }
 
-    override suspend fun fetchCycleMemorySnapshot(userId: String): List<Map<String, Any>> {
-        ensureSignedIn()
-
+    override suspend fun fetchTextureSummary(): List<Map<String, Any>> {
+        val userId = signedInUserId()
         val snapshot = firestore.collection("users").document(userId)
-            .collection("cycle_phases").get().await()
+            .collection("daily_timeline").get().await()
 
-        if (snapshot.isEmpty) return defaultPhaseBlueprint
-        return snapshot.documents.mapNotNull { it.data }
+        if (snapshot.isEmpty) return emptyList()
+
+        val counts = snapshot.documents
+            .mapNotNull { it.getString("texture") }
+            .groupingBy { it }
+            .eachCount()
+
+        val labels = listOf(
+            Triple("BRIGHT", "Bright days", "Days you described as clear, good, or bright"),
+            Triple("STEADY", "Steady days", "Days you described as okay or steady"),
+            Triple("HEAVY", "Heavy days", "Days you described as tired, foggy, hard, or heavy"),
+            Triple("OFF", "Off days", "Days you described as off, awful, or crashed"),
+            Triple("UNKNOWN", "Unlabeled days", "Check-ins kept without adding a feeling label")
+        )
+
+        return labels.mapNotNull { (texture, title, signal) ->
+            val count = counts[texture] ?: return@mapNotNull null
+            mapOf(
+                "textureTitle" to title,
+                "duration" to "$count recorded check-in${if (count == 1) "" else "s"}",
+                "texture" to texture,
+                "patternSignal" to signal
+            )
+        }
     }
 }

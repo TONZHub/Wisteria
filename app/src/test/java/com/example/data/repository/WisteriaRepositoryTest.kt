@@ -1,15 +1,14 @@
 package com.example.data.repository
 
 import com.example.data.local.entity.CareActionEntity
-import com.example.domain.agent.model.CycleTexture
 import com.example.domain.agent.model.DailyPulseData
+import com.example.domain.agent.model.DailyTexture
 import com.example.testutil.FakeCheckInDao
-import com.example.testutil.FakeCloudRunWorkflowService
 import com.example.testutil.FakeFirestoreSyncService
+import com.example.testutil.FakeNightShiftService
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -17,26 +16,30 @@ import org.junit.Test
 class WisteriaRepositoryTest {
 
     @Test
-    fun `saveDailyCheckIn starts as pending sync, not already synced`() = runTest {
-        val dao = FakeCheckInDao()
-        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), FakeCloudRunWorkflowService())
+    fun `save starts local and pending optional sync`() = runTest {
+        val repository = WisteriaRepository(
+            FakeCheckInDao(),
+            FakeFirestoreSyncService(),
+            FakeNightShiftService()
+        )
 
-        val entity = repository.saveDailyCheckIn(DailyPulseData(ratingValue = 4, texture = CycleTexture.FEELING_GOOD))
+        val entity = repository.saveDailyCheckIn(
+            DailyPulseData(ratingValue = 4, texture = DailyTexture.BRIGHT)
+        )
 
-        // Regression: this used to be hardcoded to "SYNCED_TO_FIRESTORE" with a fake path,
-        // even when nothing had actually been synced yet.
         assertEquals("PENDING_SYNC", entity.syncStatus)
         assertNull(entity.firestoreDocPath)
+        assertNull(entity.nightShiftRunId)
         assertEquals(repository.getTodayDateString(), entity.date)
     }
 
     @Test
     fun `manual firestore sync marks the existing check-in as synced`() = runTest {
         val dao = FakeCheckInDao()
-        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), FakeCloudRunWorkflowService())
-        repository.saveDailyCheckIn(DailyPulseData(ratingValue = 4))
+        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), FakeNightShiftService())
+        repository.saveDailyCheckIn(DailyPulseData(ratingValue = 4, texture = DailyTexture.BRIGHT))
 
-        val record = repository.triggerManualFirestoreSync(DailyPulseData(ratingValue = 4))
+        val record = repository.triggerManualFirestoreSync()
 
         val stored = repository.getAllCheckInsFlow().first().first()
         assertEquals("SYNCED_TO_FIRESTORE", stored.syncStatus)
@@ -44,79 +47,106 @@ class WisteriaRepositoryTest {
     }
 
     @Test
-    fun `manual firestore sync without a prior local check-in does not crash`() = runTest {
-        val dao = FakeCheckInDao()
-        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), FakeCloudRunWorkflowService())
+    fun `manual firestore sync requires a real local check-in`() = runTest {
+        val repository = WisteriaRepository(
+            FakeCheckInDao(),
+            FakeFirestoreSyncService(),
+            FakeNightShiftService()
+        )
 
-        val record = repository.triggerManualFirestoreSync(DailyPulseData())
+        var message: String? = null
+        try {
+            repository.triggerManualFirestoreSync()
+        } catch (error: IllegalStateException) {
+            message = error.message
+        }
 
-        assertNotNull(record)
+        assertEquals("Complete a check-in before syncing", message)
         assertTrue(repository.getAllCheckInsFlow().first().isEmpty())
     }
 
     @Test
-    fun `the agent's automatic firestore sync updates the row created moments earlier`() = runTest {
+    fun `a normal check-in does not sync until the user asks`() = runTest {
         val dao = FakeCheckInDao()
         val firestore = FakeFirestoreSyncService()
-        val repository = WisteriaRepository(dao, firestore, FakeCloudRunWorkflowService())
+        val repository = WisteriaRepository(dao, firestore, FakeNightShiftService())
 
         repository.checkInAgent.processUserTurn(
-            userPrompt = "2",
+            userPrompt = "2 (Heavy)",
             conversationHistory = emptyList(),
             onStateChange = { _, _ -> },
             onToolExecuted = { }
         )
 
         val stored = repository.getAllCheckInsFlow().first().first()
-        assertEquals("SYNCED_TO_FIRESTORE", stored.syncStatus)
-        assertEquals(1, firestore.syncCallCount)
-        assertEquals(2, firestore.syncedPulses.first().ratingValue)
+        assertEquals("PENDING_SYNC", stored.syncStatus)
+        assertEquals(0, firestore.syncCallCount)
     }
 
     @Test
-    fun `toggleCareAction delegates to the dao`() = runTest {
+    fun `toggle idea delegates to the dao`() = runTest {
         val dao = FakeCheckInDao()
-        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), FakeCloudRunWorkflowService())
+        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), FakeNightShiftService())
         dao.insertCareAction(
-            CareActionEntity(id = "care1", checkInId = "checkin_1", title = "t", type = "NERVE_TONIC", description = "d")
+            CareActionEntity(
+                id = "idea1",
+                checkInId = "checkin_1",
+                title = "One less decision",
+                type = "SIMPLIFY",
+                description = "Leave one choice for later."
+            )
         )
 
-        repository.toggleCareAction("care1", true)
+        repository.toggleCareAction("idea1", true)
 
-        assertTrue(dao.getAllCareActionsFlow().first().first { it.id == "care1" }.isCompleted)
+        assertTrue(dao.getAllCareActionsFlow().first().first { it.id == "idea1" }.isCompleted)
     }
 
     @Test
-    fun `getCycleMemorySnapshot delegates to the firestore service`() = runTest {
-        val dao = FakeCheckInDao()
-        val phases = listOf(mapOf("phase" to "Test Phase"))
-        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(phaseSnapshot = phases), FakeCloudRunWorkflowService())
+    fun `texture summary delegates to firestore`() = runTest {
+        val summary = listOf(mapOf("textureTitle" to "Heavy days"))
+        val repository = WisteriaRepository(
+            FakeCheckInDao(),
+            FakeFirestoreSyncService(textureSnapshot = summary),
+            FakeNightShiftService()
+        )
 
-        assertEquals(phases, repository.getCycleMemorySnapshot())
+        assertEquals(summary, repository.getTextureSummary())
     }
 
     @Test
-    fun `manual cloud run sync delegates to the cloud run service`() = runTest {
+    fun `night shift receives local history and saves a pattern note`() = runTest {
         val dao = FakeCheckInDao()
-        val cloudRun = FakeCloudRunWorkflowService()
-        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), cloudRun)
-
-        repository.triggerManualCloudRunSync()
-
-        assertEquals(listOf("pmdd_pattern_analysis"), cloudRun.dispatchedWorkflows)
-    }
-
-    @Test
-    fun `runNightShift dispatches with real local check-in history, not an empty list`() = runTest {
-        val dao = FakeCheckInDao()
-        val cloudRun = FakeCloudRunWorkflowService()
-        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), cloudRun)
-        repository.saveDailyCheckIn(DailyPulseData(ratingValue = 1, texture = CycleTexture.MEDS_DROP_WINDOW))
+        val nightShift = FakeNightShiftService()
+        val repository = WisteriaRepository(dao, FakeFirestoreSyncService(), nightShift)
+        repository.saveDailyCheckIn(
+            DailyPulseData(ratingValue = 1, texture = DailyTexture.OFF, isOffDay = true)
+        )
 
         repository.runNightShift()
 
-        assertEquals(listOf("night_shift"), cloudRun.dispatchedWorkflows)
-        assertEquals(1, cloudRun.receivedHistory.single().size)
-        assertEquals(1, cloudRun.receivedHistory.single().first().rating)
+        assertEquals(1, nightShift.receivedHistory.single().size)
+        assertEquals(DailyTexture.OFF, nightShift.receivedHistory.single().first().texture)
+        assertEquals("DAILY_PATTERN", repository.getAllMemoriesFlow().first().single().category)
+    }
+
+    @Test
+    fun `demo history is clearly labeled local data and produces a learned transition`() = runTest {
+        val dao = FakeCheckInDao()
+        val repository = WisteriaRepository(
+            dao,
+            FakeFirestoreSyncService(),
+            FakeNightShiftService()
+        )
+
+        val count = repository.loadDemoHistory()
+        val run = repository.runNightShift()
+        val rows = repository.getAllCheckInsFlow().first()
+
+        assertEquals(10, count)
+        assertEquals(10, rows.size)
+        assertTrue(rows.all { it.singleInputResponse.startsWith("Demo:") })
+        assertTrue(rows.all { it.syncStatus == "DEMO_LOCAL_ONLY" })
+        assertTrue(run.morningBrief.learnedTransitionCount > 0)
     }
 }

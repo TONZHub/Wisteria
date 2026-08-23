@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Shield
@@ -61,40 +60,39 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.CareActionEntity
 import com.example.domain.agent.model.AgentExecutionState
-import com.example.domain.agent.model.CycleTexture
+import com.example.domain.agent.model.DailyTexture
 import com.example.domain.agent.model.ToolCallRecord
 import com.example.ui.theme.CalmTeal
-import com.example.ui.theme.DropCoral
+import com.example.ui.theme.OffCoral
 import com.example.ui.theme.ForestGreenAccent
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
-import com.example.ui.theme.PeriodCrimson
-import com.example.ui.theme.SpottingRose
+import com.example.ui.theme.HeavyRose
 import com.example.ui.theme.WarningAmber
 import com.example.ui.theme.WisteriaLavender
 import com.example.ui.theme.WisteriaSoftLilac
 
 @Composable
-fun CycleTextureGauge(
-    texture: CycleTexture,
+fun DailyTextureGauge(
+    texture: DailyTexture,
     rating: Int,
-    isPmddImminent: Boolean,
+    isOffDay: Boolean,
     modifier: Modifier = Modifier
 ) {
     val textureColor = when (texture) {
-        CycleTexture.FEELING_GOOD -> ForestGreenMint
-        CycleTexture.SPOTTING_PHASE -> SpottingRose
-        CycleTexture.ACTUAL_PERIOD -> PeriodCrimson
-        CycleTexture.MEDS_DROP_WINDOW -> DropCoral
-        CycleTexture.UNKNOWN_CALIBRATING -> WisteriaLavender
+        DailyTexture.BRIGHT -> ForestGreenMint
+        DailyTexture.HEAVY -> HeavyRose
+        DailyTexture.STEADY -> ForestGreenSage
+        DailyTexture.OFF -> OffCoral
+        DailyTexture.UNKNOWN -> WisteriaLavender
     }
 
     val stateTitle = when (texture) {
-        CycleTexture.FEELING_GOOD -> "Alive & Baseline Okay"
-        CycleTexture.SPOTTING_PHASE -> "Spotting Window"
-        CycleTexture.ACTUAL_PERIOD -> "Actual Period Flow"
-        CycleTexture.MEDS_DROP_WINDOW -> "Drop Window (PMDD)"
-        CycleTexture.UNKNOWN_CALIBRATING -> "Calibrating Cycle Texture"
+        DailyTexture.BRIGHT -> "Bright"
+        DailyTexture.STEADY -> "Steady"
+        DailyTexture.HEAVY -> "Heavy"
+        DailyTexture.OFF -> "Off"
+        DailyTexture.UNKNOWN -> "Unlabeled"
     }
 
     Card(
@@ -162,7 +160,7 @@ fun CycleTextureGauge(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Cycle Texture",
+                        text = "Today's Texture",
                         style = MaterialTheme.typography.labelMedium.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -178,10 +176,10 @@ fun CycleTextureGauge(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (isPmddImminent)
-                        "⚡ Pre-crash window active: Rest and hydration queued before drop hits."
+                    text = if (isOffDay)
+                        "You chose off. A few optional, low-effort ideas are ready."
                     else
-                        "Pattern learned from texture, not standard 28-day calendar math.",
+                        "Saved from your number or everyday words—nothing extra inferred.",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                         fontSize = 11.sp
@@ -228,8 +226,8 @@ fun AgentReasoningCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Psychology,
-                            contentDescription = "ADK Thought Trace",
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "Response details",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -237,7 +235,7 @@ fun AgentReasoningCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = "Google ADK Companion Engine",
+                            text = "Wisteria Companion",
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
@@ -268,7 +266,7 @@ fun AgentReasoningCard(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = thoughtTrace.ifEmpty { "Working context active. Gemini 3.5 Flash watching irregular cycle signals to protect against the PMDD drop." },
+                            text = thoughtTrace.ifEmpty { "The check-in was saved with the everyday texture you chose." },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
@@ -302,7 +300,7 @@ fun ToolExecutionChip(
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(if (toolRecord.status == "SUCCESS") ForestGreenMint else DropCoral)
+                    .background(if (toolRecord.status == "SUCCESS") ForestGreenMint else OffCoral)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Icon(
@@ -328,7 +326,7 @@ fun CareActionRow(
 ) {
     val actionColor = when (item.type) {
         "REST_SUPPORT" -> ForestGreenMint
-        "COGNITIVE_REDUCTION" -> WisteriaLavender
+        "SIMPLIFY" -> WisteriaLavender
         "LOW_EFFORT_MEAL" -> WarningAmber
         "COMFORT_QUEUE" -> CalmTeal
         else -> WisteriaSoftLilac
@@ -336,7 +334,7 @@ fun CareActionRow(
 
     val iconVector = when (item.type) {
         "REST_SUPPORT" -> Icons.Default.Spa
-        "COGNITIVE_REDUCTION" -> Icons.Default.Shield
+        "SIMPLIFY" -> Icons.Default.Shield
         "LOW_EFFORT_MEAL" -> Icons.Default.Restaurant
         "COMFORT_QUEUE" -> Icons.Default.Favorite
         else -> Icons.Default.AutoAwesome

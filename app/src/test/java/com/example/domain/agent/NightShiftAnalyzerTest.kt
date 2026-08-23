@@ -1,6 +1,6 @@
 package com.example.domain.agent
 
-import com.example.domain.agent.model.CycleTexture
+import com.example.domain.agent.model.DailyTexture
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -9,88 +9,91 @@ import org.junit.Test
 
 class NightShiftAnalyzerTest {
 
-    private fun day(n: Int, rating: Int, texture: CycleTexture) =
-        CheckInHistoryEntry(date = "2024-01-%02d".format(n), rating = rating, texture = texture, inputText = "$rating")
+    private fun day(number: Int, rating: Int, texture: DailyTexture) =
+        CheckInHistoryEntry(
+            date = "2024-01-%02d".format(number),
+            rating = rating,
+            texture = texture,
+            inputText = rating.toString()
+        )
 
     @Test
-    fun `empty history is still calibrating`() {
+    fun `empty history is still learning`() {
         val brief = NightShiftAnalyzer.analyze(emptyList())
 
-        assertEquals("Still calibrating", brief.headline)
+        assertEquals("Still learning", brief.headline)
         assertEquals(0, brief.sampleSize)
-        assertNull(brief.daysUntilDrop)
-        assertFalse(brief.isWindowActive)
+        assertNull(brief.daysUntilOff)
+        assertFalse(brief.isOffActive)
     }
 
     @Test
-    fun `learns spotting and drop length from completed runs, not a fixed 10 or 5 day assumption`() {
+    fun `learns heavy and off lengths from completed stretches`() {
         val entries =
-            (1..4).map { day(it, 3, CycleTexture.SPOTTING_PHASE) } +
-                (5..6).map { day(it, 1, CycleTexture.MEDS_DROP_WINDOW) } +
-                (7..13).map { day(it, 4, CycleTexture.FEELING_GOOD) } +
-                listOf(day(14, 3, CycleTexture.SPOTTING_PHASE))
+            (1..4).map { day(it, 2, DailyTexture.HEAVY) } +
+                (5..6).map { day(it, 1, DailyTexture.OFF) } +
+                (7..13).map { day(it, 5, DailyTexture.BRIGHT) } +
+                listOf(day(14, 2, DailyTexture.HEAVY))
 
         val brief = NightShiftAnalyzer.analyze(entries)
 
-        assertEquals(14, brief.sampleSize)
-        assertEquals(4, brief.medianSpottingDays)
-        assertEquals(2, brief.medianDropDays)
-        assertEquals(1, brief.currentSpottingStreak)
-        assertFalse(brief.isWindowActive)
-        // Regression: comes from the learned median run length, never a hardcoded 10.
-        assertEquals(3, brief.daysUntilDrop)
+        assertEquals(4, brief.medianHeavyDays)
+        assertEquals(2, brief.medianOffDays)
+        assertEquals(1, brief.currentHeavyStreak)
+        assertEquals(3, brief.daysUntilOff)
+        assertEquals(1, brief.learnedTransitionCount)
 
-        val detectWindowTrace = brief.traces.first { it.toolName == "DetectWindow" }
-        assertEquals("1", detectWindowTrace.args["spottingStreak"])
-        assertEquals("4", detectWindowTrace.args["learnedSpottingDays"])
-        assertEquals("2", detectWindowTrace.args["learnedDropDays"])
+        val trace = brief.traces.first { it.toolName == "NoticePattern" }
+        assertEquals("1", trace.args["heavyStreak"])
+        assertEquals("4", trace.args["usualHeavyDays"])
+        assertEquals("2", trace.args["usualOffDays"])
     }
 
     @Test
-    fun `an active drop window is reported immediately with zero days until drop`() {
+    fun `an active off stretch is reported immediately`() {
         val entries =
-            (1..4).map { day(it, 3, CycleTexture.SPOTTING_PHASE) } +
-                (5..7).map { day(it, 1, CycleTexture.MEDS_DROP_WINDOW) }
+            (1..4).map { day(it, 2, DailyTexture.HEAVY) } +
+                (5..7).map { day(it, 1, DailyTexture.OFF) }
 
         val brief = NightShiftAnalyzer.analyze(entries)
 
-        assertTrue(brief.isWindowActive)
-        assertEquals(0, brief.daysUntilDrop)
-        assertEquals(3, brief.currentDropStreak)
-        assertEquals("Drop window active", brief.headline)
-        assertEquals("3", brief.traces.first { it.toolName == "QueueCare" }.args["count"])
+        assertTrue(brief.isOffActive)
+        assertEquals(0, brief.daysUntilOff)
+        assertEquals(3, brief.currentOffStreak)
+        assertEquals("Today feels off", brief.headline)
+        assertEquals("3", brief.traces.first { it.toolName == "PrepareIdeas" }.args["count"])
     }
 
     @Test
-    fun `a drop window is flagged as near when the learned spotting length is almost up`() {
+    fun `a familiar heavy stretch can produce a gentle heads up`() {
         val entries =
-            (1..5).map { day(it, 3, CycleTexture.SPOTTING_PHASE) } +
-                listOf(day(6, 4, CycleTexture.FEELING_GOOD)) +
-                (7..10).map { day(it, 3, CycleTexture.SPOTTING_PHASE) }
+            (1..5).map { day(it, 2, DailyTexture.HEAVY) } +
+                (6..7).map { day(it, 1, DailyTexture.OFF) } +
+                listOf(day(8, 4, DailyTexture.BRIGHT)) +
+                (9..12).map { day(it, 2, DailyTexture.HEAVY) }
 
         val brief = NightShiftAnalyzer.analyze(entries)
 
-        assertFalse(brief.isWindowActive)
-        assertTrue(brief.isWindowNear)
-        assertEquals(1, brief.daysUntilDrop)
-        assertEquals("Drop window may be near (~1d)", brief.headline)
+        assertFalse(brief.isOffActive)
+        assertTrue(brief.isOffNear)
+        assertEquals(1, brief.daysUntilOff)
+        assertEquals("An off stretch may be near", brief.headline)
     }
 
     @Test
-    fun `confidence grows with sample size but is capped, never a hardcoded fixed value`() {
-        val small = NightShiftAnalyzer.analyze((1..2).map { day(it, 3, CycleTexture.FEELING_GOOD) })
-        val large = NightShiftAnalyzer.analyze((1..30).map { day(it, 3, CycleTexture.FEELING_GOOD) })
+    fun `confidence grows with evidence and stays capped`() {
+        val small = NightShiftAnalyzer.analyze((1..2).map { day(it, 3, DailyTexture.STEADY) })
+        val large = NightShiftAnalyzer.analyze((1..30).map { day(it, 3, DailyTexture.STEADY) })
 
         assertTrue(large.confidence > small.confidence)
-        assertTrue(large.confidence <= 0.9f)
+        assertTrue(large.confidence <= 0.45f)
     }
 
     @Test
-    fun `no care is queued when no drop window is active`() {
-        val entries = (1..5).map { day(it, 4, CycleTexture.FEELING_GOOD) }
+    fun `a low number alone does not override the saved texture`() {
+        val brief = NightShiftAnalyzer.analyze(listOf(day(1, 1, DailyTexture.STEADY)))
 
-        val brief = NightShiftAnalyzer.analyze(entries)
-
-        assertEquals("0", brief.traces.first { it.toolName == "QueueCare" }.args["count"])
+        assertFalse(brief.isOffActive)
+        assertEquals("0", brief.traces.first { it.toolName == "PrepareIdeas" }.args["count"])
     }
 }

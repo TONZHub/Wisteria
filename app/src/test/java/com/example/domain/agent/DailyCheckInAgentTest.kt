@@ -1,17 +1,14 @@
 package com.example.domain.agent
 
+import com.example.domain.agent.model.AgentMessage
 import com.example.domain.agent.model.CareActionData
-import com.example.domain.agent.model.CyclePatternState
-import com.example.domain.agent.model.CycleTexture
 import com.example.domain.agent.model.DailyPulseData
-import com.example.domain.agent.model.ToolCallRecord
-import com.example.domain.agent.tools.AdkAgentTool
-import com.example.domain.agent.tools.CloudRunWorkflowTool
-import com.example.domain.agent.tools.DetectPMDDWindowTool
-import com.example.domain.agent.tools.FirestoreSyncTool
+import com.example.domain.agent.model.DailyTexture
+import com.example.domain.agent.model.MessageSender
+import com.example.domain.agent.tools.AgentTool
 import com.example.domain.agent.tools.RecordSingleInputCheckInTool
 import com.example.domain.agent.tools.TriggerProactiveCareActionTool
-import com.example.testutil.FakeGeminiApiService
+import com.example.testutil.FakeCompanionModelService
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,131 +18,138 @@ import org.junit.Test
 class DailyCheckInAgentTest {
 
     private fun buildAgent(
+        model: FakeCompanionModelService = FakeCompanionModelService(),
         recordedPulses: MutableList<DailyPulseData> = mutableListOf(),
-        careActions: MutableList<CareActionData> = mutableListOf(),
-        firestorePulses: MutableList<DailyPulseData> = mutableListOf(),
-        firestoreShouldThrow: Boolean = false,
-        cloudRunWorkflows: MutableList<String> = mutableListOf()
+        careActions: MutableList<CareActionData> = mutableListOf()
     ): DailyCheckInAgent {
-        val tools: List<AdkAgentTool> = listOf(
-            RecordSingleInputCheckInTool { recordedPulses.add(it) },
-            DetectPMDDWindowTool { },
-            TriggerProactiveCareActionTool { careActions.add(it) },
-            FirestoreSyncTool { pulse ->
-                if (firestoreShouldThrow) throw IllegalStateException("Firestore not configured")
-                firestorePulses.add(pulse)
-                "users/test/cycle_timeline/test-date"
-            },
-            CloudRunWorkflowTool { workflowType ->
-                cloudRunWorkflows.add(workflowType)
-                "job-123"
-            }
+        val tools: List<AgentTool> = listOf(
+            RecordSingleInputCheckInTool { recordedPulses += it },
+            TriggerProactiveCareActionTool { careActions += it }
         )
-        return DailyCheckInAgent(geminiService = FakeGeminiApiService(), tools = tools)
+        return DailyCheckInAgent(modelService = model, tools = tools)
     }
 
     @Test
-    fun `hard day input triggers PMDD texture and proactive care`() = runTest {
-        val recordedPulses = mutableListOf<DailyPulseData>()
-        val careActions = mutableListOf<CareActionData>()
-        val firestorePulses = mutableListOf<DailyPulseData>()
-        val agent = buildAgent(recordedPulses = recordedPulses, careActions = careActions, firestorePulses = firestorePulses)
-
-        val response = agent.processUserTurn(
-            userPrompt = "1",
+    fun `one records off and prepares optional ideas`() = runTest {
+        val recorded = mutableListOf<DailyPulseData>()
+        val ideas = mutableListOf<CareActionData>()
+        val response = buildAgent(recordedPulses = recorded, careActions = ideas).processUserTurn(
+            userPrompt = "1 (Off)",
             conversationHistory = emptyList(),
             onStateChange = { _, _ -> },
             onToolExecuted = { }
         )
 
-        val pulse = response.structuredPulse
-        assertEquals(1, pulse?.ratingValue)
-        assertEquals(CycleTexture.MEDS_DROP_WINDOW, pulse?.texture)
-        assertTrue(pulse?.isPmddWindowActive == true)
-        assertEquals(1, recordedPulses.size)
-        assertEquals(3, careActions.size)
-
-        // Regression: FirestoreSyncTool must receive the real extracted pulse, not an
-        // empty default DailyPulseData() (see AgentTools.kt history).
-        assertEquals(1, firestorePulses.size)
-        assertEquals(1, firestorePulses[0].ratingValue)
-        assertEquals(CycleTexture.MEDS_DROP_WINDOW, firestorePulses[0].texture)
-        assertTrue(firestorePulses[0].isPmddWindowActive)
+        assertEquals(1, response.structuredPulse?.ratingValue)
+        assertEquals(DailyTexture.OFF, response.structuredPulse?.texture)
+        assertTrue(response.structuredPulse?.isOffDay == true)
+        assertEquals(1, recorded.size)
+        assertEquals(3, ideas.size)
     }
 
     @Test
-    fun `good day input does not trigger proactive care`() = runTest {
-        val careActions = mutableListOf<CareActionData>()
-        val agent = buildAgent(careActions = careActions)
-
-        val response = agent.processUserTurn(
-            userPrompt = "5",
+    fun `two records heavy without turning it into off`() = runTest {
+        val ideas = mutableListOf<CareActionData>()
+        val response = buildAgent(careActions = ideas).processUserTurn(
+            userPrompt = "2 (Heavy)",
             conversationHistory = emptyList(),
             onStateChange = { _, _ -> },
             onToolExecuted = { }
         )
 
-        assertEquals(5, response.structuredPulse?.ratingValue)
-        assertEquals(CycleTexture.FEELING_GOOD, response.structuredPulse?.texture)
-        assertTrue(careActions.isEmpty())
+        assertEquals(DailyTexture.HEAVY, response.structuredPulse?.texture)
+        assertFalse(response.structuredPulse?.isOffDay == true)
+        assertEquals(3, ideas.size)
     }
 
     @Test
-    fun `a firestore failure is recorded as a failed tool call without crashing the turn`() = runTest {
-        val toolRecords = mutableListOf<ToolCallRecord>()
-        val agent = buildAgent(firestoreShouldThrow = true)
-
-        val response = agent.processUserTurn(
-            userPrompt = "3",
-            conversationHistory = emptyList(),
-            onStateChange = { _, _ -> },
-            onToolExecuted = { toolRecords.add(it) }
-        )
-
-        // The turn still completes normally even though the cloud sync failed.
-        assertEquals("3", response.structuredPulse?.singleInputResponse)
-
-        val firestoreRecord = toolRecords.first { it.toolName == "FirestoreSyncTool" }
-        assertEquals("FAILED", firestoreRecord.status)
-        assertTrue(firestoreRecord.resultSummary.contains("Firestore sync failed"))
-    }
-
-    @Test
-    fun `cloud run workflow is dispatched every turn`() = runTest {
-        val cloudRunWorkflows = mutableListOf<String>()
-        val agent = buildAgent(cloudRunWorkflows = cloudRunWorkflows)
-
-        agent.processUserTurn(
-            userPrompt = "doing okay",
+    fun `five records bright without optional ideas`() = runTest {
+        val ideas = mutableListOf<CareActionData>()
+        val response = buildAgent(careActions = ideas).processUserTurn(
+            userPrompt = "5 (Bright)",
             conversationHistory = emptyList(),
             onStateChange = { _, _ -> },
             onToolExecuted = { }
         )
 
-        assertEquals(listOf("pmdd_pattern_analysis"), cloudRunWorkflows)
+        assertEquals(DailyTexture.BRIGHT, response.structuredPulse?.texture)
+        assertTrue(ideas.isEmpty())
     }
 
     @Test
-    fun `agent output never names a specific person`() = runTest {
+    fun `an unfamiliar word stays unlabeled`() = runTest {
+        val response = buildAgent().processUserTurn(
+            userPrompt = "purple",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(DailyTexture.UNKNOWN, response.structuredPulse?.texture)
+        assertEquals(0f, response.structuredPulse?.confidenceScore)
+    }
+
+    @Test
+    fun `optional model wording is used when available`() = runTest {
+        val model = FakeCompanionModelService(response = "Saved. Want one easy idea?")
+        val response = buildAgent(model = model).processUserTurn(
+            userPrompt = "I feel off",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals("Saved. Want one easy idea?", response.text)
+        assertEquals(1, model.prompts.size)
+    }
+
+    @Test
+    fun `the current check-in appears once in the model prompt`() = runTest {
+        val model = FakeCompanionModelService(response = "Saved.")
+        val input = "4 (Clear)"
+        val history = listOf(
+            AgentMessage(id = "current", sender = MessageSender.USER, text = input)
+        )
+
+        buildAgent(model = model).processUserTurn(
+            userPrompt = input,
+            conversationHistory = history,
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(1, Regex(Regex.escape(input)).findAll(model.prompts.single()).count())
+    }
+
+    @Test
+    fun `model wording with a body phase label falls back to everyday language`() = runTest {
+        val model = FakeCompanionModelService(response = "You are in a follicular phase.")
+
+        val response = buildAgent(model = model).processUserTurn(
+            userPrompt = "I feel off",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertFalse(response.text.contains("follicular", ignoreCase = true))
+        assertTrue(response.text.contains("feels off", ignoreCase = true))
+    }
+
+    @Test
+    fun `local companion output stays in everyday language`() = runTest {
+        val banned = listOf("pmdd", "medication", "follicular", "luteal", "spotting", "period")
         val agent = buildAgent()
 
-        val inputs = listOf("1", "2", "3", "4", "5", "spotting started", "feeling great", "crash")
-        for (input in inputs) {
+        listOf("1", "2", "3", "4", "5", "I feel off", "today feels heavy").forEach { input ->
             val response = agent.processUserTurn(
                 userPrompt = input,
                 conversationHistory = emptyList(),
                 onStateChange = { _, _ -> },
                 onToolExecuted = { }
             )
-
-            assertFalse(
-                "response text leaked a personal name for input '$input': ${response.text}",
-                response.text.contains("Zoe", ignoreCase = true)
-            )
-            assertFalse(
-                "thought trace leaked a personal name for input '$input': ${response.thoughtTrace}",
-                response.thoughtTrace?.contains("Zoe", ignoreCase = true) == true
-            )
+            val output = "${response.text} ${response.thoughtTrace}".lowercase()
+            banned.forEach { term -> assertFalse("found '$term' in: $output", output.contains(term)) }
         }
     }
 }
