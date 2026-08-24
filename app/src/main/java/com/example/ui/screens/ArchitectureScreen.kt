@@ -104,7 +104,7 @@ fun ArchitectureScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "A 3-second check-in is saved to Room on this device. Wisteria keeps the everyday texture you chose, while Night Shift learns only from heavy-to-off stretches that actually appear in your history.",
+                        text = "Type, tap, or speak a check-in to the same agent loop. Room saves the everyday texture on this device, while Night Shift learns only from heavy-to-off stretches that actually appear in your history.",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 18.sp
@@ -118,6 +118,7 @@ fun ArchitectureScreen(
             ArchitectureCard(title = "Submission architecture") {
                 val rows = listOf(
                     Triple("Record check-in", "Room stores the rating and everyday texture you chose.", ForestGreenMint),
+                    Triple("Talk to Wisteria", "Tap-to-speak and in-app calls route each transcript through the same agent, tools, and local record.", WisteriaLavender),
                     Triple("Offer care ideas", "Suggestions stay inside Wisteria; no alerts, tasks, settings, or contacts are changed.", WisteriaLavender),
                     Triple("Run Night Shift", "A user-triggered on-device analyzer learns from local history with sample-based confidence.", HeavyRose),
                     Triple("Shape the reply", "Firebase AI Logic can provide concise wording; a deterministic local response remains available.", ForestGreenSage),

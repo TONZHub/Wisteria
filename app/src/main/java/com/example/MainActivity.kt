@@ -1,6 +1,8 @@
 package com.example
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -32,10 +34,12 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.core.content.ContextCompat
 import com.example.ui.screens.ArchitectureScreen
 import com.example.ui.screens.DailyCheckInAgentScreen
 import com.example.ui.screens.DailySummaryScreen
 import com.example.ui.screens.RhythmMemoryScreen
+import com.example.ui.screens.VoiceCallScreen
 import com.example.ui.components.FullScreenCheckInDialog
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.MyApplicationTheme
@@ -50,6 +54,11 @@ enum class WisteriaTab(val title: String, val icon: androidx.compose.ui.graphics
     DAILY_PULSE("Check-In", Icons.Default.Spa),
     INSIGHTS("Insights", Icons.Default.AutoAwesome),
     RHYTHM_CARE("Rhythm & Care", Icons.Default.CalendarMonth)
+}
+
+private enum class VoiceStartAction {
+    DICTATION,
+    CALL
 }
 
 class MainActivity : ComponentActivity() {
@@ -108,6 +117,7 @@ fun WisteriaMainApp(
     }
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
+    val voiceState by viewModel.voiceState.collectAsState()
     
     val isDark = when (uiState.themeMode) {
         ThemeMode.AUTO -> isSystemInDarkTheme()
@@ -145,6 +155,36 @@ fun WisteriaMainApp(
             androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
         ) { isGranted ->
             // Handle notification permission result if needed
+        }
+
+        var pendingVoiceAction by remember { mutableStateOf<VoiceStartAction?>(null) }
+        val performVoiceAction: (VoiceStartAction) -> Unit = { action ->
+            when (action) {
+                VoiceStartAction.DICTATION -> viewModel.startVoiceInput()
+                VoiceStartAction.CALL -> viewModel.startVoiceCall()
+            }
+        }
+        val microphonePermissionLauncher = rememberLauncherForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            val action = pendingVoiceAction
+            pendingVoiceAction = null
+            if (granted && action != null) {
+                performVoiceAction(action)
+            } else if (!granted) {
+                viewModel.onMicrophonePermissionDenied()
+            }
+        }
+        val requestVoiceAction: (VoiceStartAction) -> Unit = { action ->
+            if (
+                ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                performVoiceAction(action)
+            } else {
+                pendingVoiceAction = action
+                microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
         }
 
         LaunchedEffect(Unit) {
@@ -253,6 +293,7 @@ fun WisteriaMainApp(
                             )
                             Text(
                                 text = "• Check in with a number or one everyday word\n" +
+                                        "• Speak a turn or open an in-app voice call\n" +
                                         "• Keep bright, steady, heavy, and off days separate\n" +
                                         "• Notice only patterns that appear in your own history\n" +
                                         "• Store locally first; Firebase features are optional\n\n" +
@@ -474,7 +515,11 @@ fun WisteriaMainApp(
                             onQuickOption = { rating, label -> viewModel.sendQuickOption(rating, label) },
                             onToggleCareAction = { id, done -> viewModel.toggleCareAction(id, done) },
                             onOpenTakeover = { viewModel.openFullScreenTakeover() },
-                            onCloseTakeover = { viewModel.closeFullScreenTakeover() }
+                            onCloseTakeover = { viewModel.closeFullScreenTakeover() },
+                            voiceState = voiceState,
+                            onStartVoiceInput = { requestVoiceAction(VoiceStartAction.DICTATION) },
+                            onStopVoiceInput = { viewModel.stopVoiceInput() },
+                            onStartCall = { requestVoiceAction(VoiceStartAction.CALL) }
                         )
                         WisteriaTab.INSIGHTS -> DailySummaryScreen(
                         uiState = uiState,
@@ -496,6 +541,17 @@ fun WisteriaMainApp(
                     }
                 }
             }
+        }
+
+        if (voiceState.isCallActive) {
+            VoiceCallScreen(
+                state = voiceState,
+                onToggleListening = { viewModel.toggleVoiceListening() },
+                onToggleHandsFree = { viewModel.toggleVoiceHandsFree() },
+                onToggleMicMuted = { viewModel.toggleVoiceMicMuted() },
+                onToggleSpeaker = { viewModel.toggleVoiceSpeaker() },
+                onEndCall = { viewModel.endVoiceCall() }
+            )
         }
     }
 }

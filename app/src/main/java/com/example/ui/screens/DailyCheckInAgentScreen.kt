@@ -28,9 +28,12 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Spa
@@ -73,6 +76,8 @@ import com.example.ui.theme.ForestGreenSage
 import com.example.ui.theme.HeavyRose
 import com.example.ui.theme.WisteriaLavender
 import com.example.ui.viewmodel.CheckInUiState
+import com.example.voice.VoiceConversationState
+import com.example.voice.VoicePhase
 
 @Composable
 fun DailyCheckInAgentScreen(
@@ -83,6 +88,10 @@ fun DailyCheckInAgentScreen(
     onToggleCareAction: (String, Boolean) -> Unit,
     onOpenTakeover: () -> Unit,
     onCloseTakeover: () -> Unit,
+    voiceState: VoiceConversationState,
+    onStartVoiceInput: () -> Unit,
+    onStopVoiceInput: () -> Unit,
+    onStartCall: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var inputText by remember { mutableStateOf("") }
@@ -122,13 +131,42 @@ fun DailyCheckInAgentScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     )
-                    Text(
-                        text = "Tap once (1–5)",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = ForestGreenMint,
-                            fontWeight = FontWeight.SemiBold
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Tap once (1–5)",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = ForestGreenMint,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         )
-                    )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            onClick = onStartCall,
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                            modifier = Modifier.testTag("start_voice_call_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Call,
+                                    contentDescription = "Call Wisteria",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Call",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -321,7 +359,16 @@ fun DailyCheckInAgentScreen(
             }
         }
 
-        // Bottom Input Field (For when typing a word or emoji)
+        AnimatedVisibility(
+            visible = !voiceState.isCallActive &&
+                (voiceState.phase != VoicePhase.IDLE || voiceState.errorMessage != null),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            VoiceInputBanner(state = voiceState)
+        }
+
+        // Bottom Input Field (For typing or tap-to-speak)
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
@@ -333,6 +380,32 @@ fun DailyCheckInAgentScreen(
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val isListening =
+                    !voiceState.isCallActive && voiceState.phase == VoicePhase.LISTENING
+                val voiceInputEnabled =
+                    !uiState.isAgentActive &&
+                        voiceState.phase != VoicePhase.PROCESSING &&
+                        voiceState.phase != VoicePhase.SPEAKING
+                IconButton(
+                    onClick = if (isListening) onStopVoiceInput else onStartVoiceInput,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isListening) ForestGreenMint else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        )
+                        .testTag("voice_input_button"),
+                    enabled = voiceInputEnabled
+                ) {
+                    Icon(
+                        imageVector = if (isListening) Icons.Default.MicOff else Icons.Default.Mic,
+                        contentDescription = if (isListening) "Finish voice input" else "Speak to Wisteria",
+                        tint = if (isListening) Color.White else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
@@ -373,6 +446,47 @@ fun DailyCheckInAgentScreen(
                         contentDescription = "Send",
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoiceInputBanner(state: VoiceConversationState) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .testTag("voice_input_status"),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (state.phase == VoicePhase.LISTENING) Icons.Default.Mic else Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(9.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = state.statusLabel,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                val caption = state.heardCaption
+                if (caption.isNotBlank()) {
+                    Text(
+                        text = caption,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        maxLines = 2
                     )
                 }
             }
