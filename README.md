@@ -6,6 +6,12 @@
 
 Wisteria is a local-first Android prototype that turns a number, emoji, or everyday word into a gentle daily record. It uses four intentionally plain textures—**bright, steady, heavy, and off**—and never assigns a body phase or explains why someone feels a certain way.
 
+## Who Wisteria is for
+
+Wisteria's primary audience is **people who already live with PMDD and are entering perimenopause**—a transition when cycles and familiar warning signs may become less predictable, while difficult days still need to be remembered. Detailed phase-based trackers can ask for the most work precisely when fog, exhaustion, or distress leaves the least capacity. Wisteria preserves a useful daily signal without requiring the person to identify a phase or explain a cause.
+
+This focus is grounded in the lived experience that prompted the project and in guidance from the [International Association for Premenstrual Disorders](https://www.iapmd.org/reproductive-lifespan), which notes that perimenopause can bring irregular periods and more unpredictable changes that may intensify existing PMDD or PME symptoms. Wisteria is not positioned as a diagnostic tool or as a post-menopause PMDD tracker. Its job is smaller: catch the days conventional tracking may lose, then let the person share their own history when they choose.
+
 ## Hackathon snapshot
 
 Wisteria was created during the All Things Agentic Hackathon submission period; development began on **August 22, 2026**, with no Wisteria application code predating August 3. It enters the **Collaborative Partner** category.
