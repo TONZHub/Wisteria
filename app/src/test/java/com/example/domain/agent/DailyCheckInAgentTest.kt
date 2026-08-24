@@ -104,6 +104,8 @@ class DailyCheckInAgentTest {
 
         assertEquals("I hear off. Would one easy idea help?", response.text)
         assertEquals(1, model.prompts.size)
+        assertEquals("Fake ADK runtime", response.runtimeTrace?.framework)
+        assertEquals("fake-model", response.runtimeTrace?.model)
     }
 
     @Test
@@ -137,6 +139,7 @@ class DailyCheckInAgentTest {
 
         assertFalse(response.text.contains("follicular", ignoreCase = true))
         assertTrue(response.text.contains("feels off", ignoreCase = true))
+        assertEquals(1, model.startedSessions)
     }
 
     @Test
@@ -218,7 +221,8 @@ class DailyCheckInAgentTest {
     @Test
     fun `starting a new session permits a deliberate matching check-in`() = runTest {
         val recorded = mutableListOf<DailyPulseData>()
-        val agent = buildAgent(recordedPulses = recorded)
+        val model = FakeCompanionModelService()
+        val agent = buildAgent(model = model, recordedPulses = recorded)
 
         agent.processUserTurn(
             userPrompt = "3 (Steady)",
@@ -236,6 +240,17 @@ class DailyCheckInAgentTest {
 
         assertEquals(AgentTurnIntent.CHECK_IN, secondSession.turnIntent)
         assertEquals(2, recorded.size)
+        assertEquals(1, model.startedSessions)
+    }
+
+    @Test
+    fun `ending a conversation rotates the model session`() {
+        val model = FakeCompanionModelService(response = "I'm here.")
+        val agent = buildAgent(model = model)
+
+        agent.endSession()
+
+        assertEquals(1, model.endedSessions)
     }
 
     @Test
@@ -254,4 +269,5 @@ class DailyCheckInAgentTest {
             banned.forEach { term -> assertFalse("found '$term' in: $output", output.contains(term)) }
         }
     }
+
 }

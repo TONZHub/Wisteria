@@ -42,8 +42,14 @@ android {
     debug { }
   }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+  }
+  packaging {
+    resources {
+      merges += "**/META-INF/INDEX.LIST"
+      merges += "**/META-INF/DEPENDENCIES"
+    }
   }
   buildFeatures { compose = true }
   testOptions { unitTests { isIncludeAndroidResources = true } }
@@ -56,6 +62,8 @@ android {
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
 
 dependencies {
+  implementation(libs.adk.core)
+  implementation(libs.adk.firebase.android)
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
   implementation(libs.androidx.activity.compose)

@@ -650,7 +650,7 @@ fun CalmMessageBubble(
                     )
                 )
 
-                if (!isUser && message.toolInvocations.isNotEmpty()) {
+                if (!isUser && (message.runtimeTrace != null || message.toolInvocations.isNotEmpty())) {
                     val checkInSaved = message.toolInvocations.any {
                         it.toolName == "RecordSingleInputCheckInTool" && it.status == "SUCCESS"
                     }
@@ -663,6 +663,9 @@ fun CalmMessageBubble(
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        message.runtimeTrace?.let { runtime ->
+                            TurnReceipt(text = "✓ ${runtime.framework} · ${runtime.model}")
+                        }
                         if (checkInSaved) {
                             TurnReceipt(text = "✓ Check-in saved once")
                         }

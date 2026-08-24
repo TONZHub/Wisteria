@@ -97,7 +97,7 @@ fun ArchitectureScreen(
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "Local-first Android · Firebase optional",
+                                text = "Local-first Android · ADK + Firebase optional",
                                 style = MaterialTheme.typography.bodySmall.copy(color = ForestGreenMint)
                             )
                         }
@@ -121,7 +121,8 @@ fun ArchitectureScreen(
                     Triple("Talk to Wisteria", "Tap-to-speak and in-app calls route each transcript through the same agent, tools, and local record.", WisteriaLavender),
                     Triple("Offer care ideas", "Suggestions stay inside Wisteria; no alerts, tasks, settings, or contacts are changed.", WisteriaLavender),
                     Triple("Run Night Shift", "A user-triggered on-device analyzer learns from local history with sample-based confidence.", HeavyRose),
-                    Triple("Shape the reply", "Firebase AI Logic can provide concise wording; a deterministic local response remains available.", ForestGreenSage),
+                    Triple("Keep the conversation", "Google ADK Kotlin holds the in-memory dialogue session and asks Firebase AI Logic for concise wording.", ForestGreenSage),
+                    Triple("Gate every action", "The deterministic local router and allowlist remain final; ADK cannot authorize a write by itself.", WisteriaLavender),
                     Triple("Sync timeline", "A separate button opts into Firestore with Google Sign-In for persistence.", ForestGreenMint)
                 )
                 rows.forEach { (name, description, color) ->
@@ -215,9 +216,11 @@ fun ArchitectureScreen(
                         Text(
                             text = "Room: on-device\n" +
                                 "Night Shift: on-device (${uiState.nightShiftRuns.size} run(s))\n" +
+                                "Agent runtime: Google ADK Kotlin 0.8.0\n" +
+                                "ADK session: in-memory, reset with conversation\n" +
                                 "Firestore: optional (${uiState.firestoreSyncLogs.size} sync(s))\n" +
                                 "Pattern memories: ${memories.size}\n" +
-                                "Firebase AI Logic: optional, App Check protected",
+                                "Firebase AI Logic: Gemini 3.5 Flash, App Check protected",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,

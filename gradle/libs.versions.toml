@@ -1,7 +1,8 @@
 [versions]
 agp = "9.3.1"
+adk = "0.8.0"
 compileSdk = "36"
-minSdk = "24"
+minSdk = "26"
 targetSdk = "36"
 coreKtx = "1.18.0"
 junit = "4.13.2"
@@ -15,15 +16,15 @@ kotlin = "2.2.10"
 composeBom = "2024.09.00"
 googleDevtoolsKsp = "2.3.6"
 navigationCompose = "2.8.9"
-roomRuntime = "2.7.0"
-roomKtx = "2.7.0"
-roomCompiler = "2.7.0"
-kotlinxCoroutinesTest = "1.10.2"
+roomRuntime = "2.8.4"
+roomKtx = "2.8.4"
+roomCompiler = "2.8.4"
+kotlinxCoroutinesTest = "1.11.0"
 core = "1.6.1"
 runner = "1.6.2"
 coilCompose = "2.7.0"
-kotlinxCoroutinesAndroid = "1.10.2"
-kotlinxCoroutinesCore = "1.10.2"
+kotlinxCoroutinesAndroid = "1.11.0"
+kotlinxCoroutinesCore = "1.11.0"
 accompanistPermissions = "0.37.3"
 playServicesLocation = "21.3.0"
 cameraCamera2 = "1.5.0"
@@ -41,6 +42,8 @@ health-connect = "1.1.0"
 
 
 [libraries]
+adk-core = { group = "com.google.adk", name = "google-adk-kotlin-core", version.ref = "adk" }
+adk-firebase-android = { group = "com.google.adk", name = "google-adk-kotlin-firebase-android", version.ref = "adk" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

@@ -44,6 +44,14 @@ data class ToolCallRecord(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+data class AgentRuntimeTrace(
+    val framework: String,
+    val model: String,
+    val sessionId: String,
+    val eventCount: Int,
+    val resolvedModelVersion: String? = null
+)
+
 data class CareActionData(
     val id: String,
     val title: String,
@@ -74,6 +82,7 @@ data class AgentMessage(
     val text: String,
     val timestamp: Long = System.currentTimeMillis(),
     val thoughtTrace: String? = null,
+    val runtimeTrace: AgentRuntimeTrace? = null,
     val toolInvocations: List<ToolCallRecord> = emptyList(),
     val structuredPulse: DailyPulseData? = null,
     val turnIntent: AgentTurnIntent? = null
