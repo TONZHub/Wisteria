@@ -149,4 +149,26 @@ class WisteriaRepositoryTest {
         assertTrue(rows.all { it.syncStatus == "DEMO_LOCAL_ONLY" })
         assertTrue(run.morningBrief.learnedTransitionCount > 0)
     }
+
+    @Test
+    fun `demo history stays behind todays real check-in so it can still sync`() = runTest {
+        val dao = FakeCheckInDao()
+        val firestore = FakeFirestoreSyncService()
+        val repository = WisteriaRepository(dao, firestore, FakeNightShiftService())
+        repository.saveDailyCheckIn(
+            DailyPulseData(
+                ratingValue = 1,
+                texture = DailyTexture.OFF,
+                textureLabel = "Off",
+                singleInputResponse = "I feel off",
+                agentAcknowledgment = "I'm here with you.",
+                isOffDay = true
+            )
+        )
+
+        repository.loadDemoHistory()
+        repository.triggerManualFirestoreSync()
+
+        assertEquals("I feel off", firestore.syncedPulses.single().singleInputResponse)
+    }
 }

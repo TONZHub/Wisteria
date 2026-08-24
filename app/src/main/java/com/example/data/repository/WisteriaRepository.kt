@@ -180,7 +180,9 @@ class WisteriaRepository(
             DailyTexture.HEAVY,
             DailyTexture.HEAVY
         )
-        val start = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -(textures.size - 1)) }
+        // Keep judge samples behind the person's real check-in for today. A sample dated today
+        // could become the newest row and make explicit Firestore sync target demo data.
+        val start = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -textures.size) }
         val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
         textures.forEachIndexed { index, texture ->
