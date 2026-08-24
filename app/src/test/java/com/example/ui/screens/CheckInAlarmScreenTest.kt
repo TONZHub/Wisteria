@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.example.ui.theme.MyApplicationTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -33,11 +34,11 @@ class CheckInAlarmScreenTest {
         }
 
         composeRule.onNodeWithTag("check_in_alarm_screen").assertIsDisplayed()
-        composeRule.onNodeWithTag("alarm_start_check_in").performClick()
+        composeRule.onNodeWithTag("alarm_start_check_in").performScrollTo().performClick()
         assertEquals("start", action)
-        composeRule.onNodeWithTag("alarm_snooze").performClick()
+        composeRule.onNodeWithTag("alarm_snooze").performScrollTo().performClick()
         assertEquals("snooze", action)
-        composeRule.onNodeWithTag("alarm_dismiss").performClick()
+        composeRule.onNodeWithTag("alarm_dismiss").performScrollTo().performClick()
         assertEquals("dismiss", action)
     }
 }
