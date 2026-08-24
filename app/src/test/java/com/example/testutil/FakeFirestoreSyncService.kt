@@ -12,6 +12,19 @@ class FakeFirestoreSyncService(
     val syncedPulses = mutableListOf<DailyPulseData>()
     var syncCallCount = 0
         private set
+    private var signedIn = false
+
+    override suspend fun signInWithGoogle(idToken: String) {
+        signedIn = true
+    }
+
+    override fun signOut() {
+        signedIn = false
+    }
+
+    override fun isUserLoggedIn(): Boolean = signedIn
+
+    override fun getUserEmail(): String? = if (signedIn) "test@wisteria.local" else null
 
     override suspend fun syncDailyCheckIn(pulse: DailyPulseData): FirestoreSyncRecord {
         syncCallCount++
