@@ -20,6 +20,7 @@ import com.example.domain.agent.model.DailyPulseData
 import com.example.domain.agent.model.MessageSender
 import com.example.domain.agent.model.ToolCallRecord
 import com.example.domain.agent.MorningBrief
+import com.example.voice.VoiceConversationController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -66,9 +67,13 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     private val repository = WisteriaRepository(database.checkInDao())
     private val healthManager = HealthConnectManager(application)
     private val reminderManager = CheckInReminderManager(application)
+    private val voiceController = VoiceConversationController(application) { transcript ->
+        sendMessageInternal(transcript, speakResponse = true)
+    }
 
     private val _uiState = MutableStateFlow(CheckInUiState())
     val uiState: StateFlow<CheckInUiState> = _uiState.asStateFlow()
+    val voiceState = voiceController.state
 
     val allCheckIns: StateFlow<List<DailyCheckInEntity>> = repository.getAllCheckInsFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -253,6 +258,10 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun sendMessage(userText: String) {
+        sendMessageInternal(userText, speakResponse = false)
+    }
+
+    private fun sendMessageInternal(userText: String, speakResponse: Boolean) {
         if (userText.isBlank()) return
 
         val userMessage = AgentMessage(
@@ -270,33 +279,71 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         )
 
         viewModelScope.launch {
-            val healthContext = healthManager.fetchLastCycleContext()
-            val agentResponse = repository.checkInAgent.processUserTurn(
-                userPrompt = userText,
-                conversationHistory = updatedMessages,
-                healthContext = healthContext,
-                onStateChange = { state, status ->
-                    _uiState.value = _uiState.value.copy(
-                        agentState = state,
-                        agentStatusMessage = status
-                    )
-                },
-                onToolExecuted = { toolRecord ->
-                    val toolsList = _uiState.value.executedTools + toolRecord
-                    _uiState.value = _uiState.value.copy(executedTools = toolsList)
-                }
-            )
+            try {
+                val healthContext = healthManager.fetchLastCycleContext()
+                val agentResponse = repository.checkInAgent.processUserTurn(
+                    userPrompt = userText,
+                    conversationHistory = updatedMessages,
+                    healthContext = healthContext,
+                    onStateChange = { state, status ->
+                        _uiState.value = _uiState.value.copy(
+                            agentState = state,
+                            agentStatusMessage = status
+                        )
+                    },
+                    onToolExecuted = { toolRecord ->
+                        val toolsList = _uiState.value.executedTools + toolRecord
+                        _uiState.value = _uiState.value.copy(executedTools = toolsList)
+                    }
+                )
 
-            val newPulse = agentResponse.structuredPulse ?: _uiState.value.latestPulse
-            _uiState.value = _uiState.value.copy(
-                messages = _uiState.value.messages + agentResponse,
-                agentState = AgentExecutionState.IDLE,
-                agentStatusMessage = "Ready for a check-in",
-                latestPulse = newPulse,
-                isAgentActive = false
-            )
+                val newPulse = agentResponse.structuredPulse ?: _uiState.value.latestPulse
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + agentResponse,
+                    agentState = AgentExecutionState.IDLE,
+                    agentStatusMessage = "Ready for a check-in",
+                    latestPulse = newPulse,
+                    isAgentActive = false
+                )
+                if (speakResponse) {
+                    voiceController.onAgentResponse(agentResponse.text)
+                }
+            } catch (error: Exception) {
+                val fallback = "I couldn't finish that turn. Your text is still here, and you can try again."
+                _uiState.value = _uiState.value.copy(
+                    messages = _uiState.value.messages + AgentMessage(
+                        id = UUID.randomUUID().toString(),
+                        sender = MessageSender.AGENT,
+                        text = fallback
+                    ),
+                    agentState = AgentExecutionState.ERROR,
+                    agentStatusMessage = error.message ?: "The agent turn could not finish",
+                    isAgentActive = false
+                )
+                if (speakResponse) {
+                    voiceController.onAgentResponse(fallback)
+                }
+            }
         }
     }
+
+    fun startVoiceInput() = voiceController.startDictation()
+
+    fun stopVoiceInput() = voiceController.stopListening()
+
+    fun startVoiceCall() = voiceController.startCall(handsFree = true)
+
+    fun endVoiceCall() = voiceController.endCall()
+
+    fun toggleVoiceListening() = voiceController.toggleListening()
+
+    fun toggleVoiceHandsFree() = voiceController.toggleHandsFree()
+
+    fun toggleVoiceMicMuted() = voiceController.toggleMicMuted()
+
+    fun toggleVoiceSpeaker() = voiceController.toggleSpeaker()
+
+    fun onMicrophonePermissionDenied() = voiceController.onMicrophonePermissionDenied()
 
     fun sendQuickOption(rating: Int, label: String) {
         sendMessage("$rating ($label)")
@@ -418,5 +465,10 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
             agentState = AgentExecutionState.IDLE,
             agentStatusMessage = "Ready for check-in"
         )
+    }
+
+    override fun onCleared() {
+        voiceController.destroy()
+        super.onCleared()
     }
 }

@@ -8,17 +8,20 @@ Wisteria is a local-first Android prototype that turns a number, emoji, or every
 
 ## 60-second judge demo
 
-1. Open **Check-In** and tap **Off**. Wisteria saves the entry locally and offers three optional, low-effort ideas.
-2. Open **Insights** to see today's texture and toggle one idea as done.
-3. Tap the info icon, choose **See How It Works**, then tap **Load 10 clearly labeled demo days**.
-4. Wisteria runs Night Shift on-device and shows the heavy-to-off pattern it found, the number of samples used, and a trace of each step.
-5. If Firebase is configured, tap **Sync Firestore** and send one check-in through the Firebase AI Logic response layer.
+1. Open **Check-In**, tap the microphone, and say “I feel off.” Wisteria captions the turn, runs the same agent tools as text mode, and speaks its reply.
+2. Tap **Call** to show full-screen voice mode. Toggle hands-free off and back on, then end the call.
+3. Open **Insights** to see today's texture and toggle one optional idea as done.
+4. Tap the info icon, choose **See How It Works**, then tap **Load 10 clearly labeled demo days**.
+5. Wisteria runs Night Shift on-device and shows the heavy-to-off pattern it found, the number of samples used, and a trace of each step.
+6. If Firebase is configured, sign in with Google and explicitly tap **Sync Firestore**.
 
 The demo-data button is explicit: every sample starts with `Demo:`, stays local, and is never synced automatically.
 
 ## What works today
 
 - One-tap or one-word check-ins with a deterministic local fallback.
+- Tap-to-speak check-ins with live partial captions and a spoken Wisteria response.
+- Full-screen in-app calls with push-to-talk, turn-based hands-free mode, mute, speaker, captions, and hang up controls.
 - Local Room storage; Android backup is disabled for the app.
 - Everyday textures kept separate: bright, steady, heavy, off, or unlabeled.
 - User-triggered Night Shift learning from real heavy-to-off stretches in local history—no fixed schedule.
@@ -30,9 +33,9 @@ The demo-data button is explicit: every sample starts with `Demo:`, stays local,
 
 ## Honest boundaries
 
-Wisteria does **not** assign a body phase, label a condition, identify a cause, change alerts or tasks, contact anyone, run overnight, or deploy a Cloud Run worker. The tool interface is project-owned; this repository does not claim a Google ADK integration.
+Wisteria does **not** assign a body phase, label a condition, identify a cause, change alerts or tasks, place telephone calls, contact anyone, run overnight, or deploy a Cloud Run worker. “Call” means a full-screen conversation inside the Android app. The tool interface is project-owned; this repository does not claim a Google ADK integration.
 
-Night Shift runs only when the person taps its button. Firebase AI Logic shapes the short companion reply; local rules own storage, texture selection, and care ideas so the core check-in still works offline or without Firebase configuration.
+Night Shift runs only when the person taps its button. Firebase AI Logic shapes the short companion reply; local rules own storage, texture selection, and care ideas so the core check-in still works offline or without Firebase configuration. Hands-free voice mode uses bounded listen–think–speak turns rather than an always-open microphone.
 
 ## Architecture
 
@@ -43,6 +46,9 @@ Night Shift runs only when the person taps its button. Firebase AI Logic shapes 
 | Texture selection | Deterministic Kotlin rules using the submitted number or words |
 | Pattern learning | `NightShiftAnalyzer`, on-device and user-triggered |
 | Companion wording | Firebase AI Logic (`gemini-3.5-flash`), with local fallback |
+| Voice input | Android `SpeechRecognizer`; on-device recognition is preferred when available |
+| Voice output | Android device text-to-speech with utterance lifecycle callbacks |
+| Call mode | Full-screen, turn-based in-app voice session over the existing agent loop |
 | Optional sync | Cloud Firestore at `users/{uid}/daily_timeline/{date}` |
 | Identity | Firebase Authentication with Google Sign-In; the resolved UID is used after sign-in |
 | Request protection | Firebase App Check |
@@ -57,7 +63,7 @@ The app builds and its core demo works without Firebase configuration:
 ./gradlew testDebugUnitTest assembleDebug
 ```
 
-Install `app/build/outputs/apk/debug/app-debug.apk`, then use **Load 10 clearly labeled demo days** for the full judge flow.
+Install `app/build/outputs/apk/debug/app-debug.apk`, then use **Load 10 clearly labeled demo days** for the full judge flow. The first microphone or call action requests `RECORD_AUDIO`; voice features also require an Android speech-recognition service and text-to-speech engine.
 
 ### Connected Firebase demo
 
@@ -81,11 +87,13 @@ Every pull request runs:
 ./gradlew testDebugUnitTest assembleDebug --stacktrace
 ```
 
-The tests cover everyday-language selection, unknown input, optional care ideas, prompt de-duplication, local-only check-ins, explicit Firestore sync, demo-data labeling, heavy-to-off learning, confidence limits, and on-device Night Shift execution.
+The tests cover everyday-language selection, unknown input, optional care ideas, prompt de-duplication, local-only check-ins, explicit Firestore sync, demo-data labeling, heavy-to-off learning, confidence limits, on-device Night Shift execution, and voice-session UI state.
 
 ## Privacy notes
 
 - Check-ins start on-device and are not cloud-synced during a normal check-in.
+- Wisteria does not retain raw microphone audio. The configured Android speech service produces a transcript, which follows the same storage and optional AI path as typed text.
+- Voice mode stops recognition while the agent reasons or speaks; hands-free mode opens a new finite listening turn only after speech playback ends.
 - Firestore sync requires an explicit button tap.
 - App data is excluded from Android backup.
 - The repository contains no Firebase configuration, developer API key, or personal planning artifact in its current tree.
