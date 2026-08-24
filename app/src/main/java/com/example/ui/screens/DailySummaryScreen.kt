@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Shield
@@ -60,6 +59,8 @@ import com.example.domain.agent.MorningBrief
 import com.example.domain.agent.model.DailyTexture
 import com.example.ui.components.CareActionRow
 import com.example.ui.components.DailyTextureGauge
+import com.example.ui.components.GoogleBrandMark
+import com.example.ui.components.HealthConnectBrandMark
 import com.example.ui.theme.OffCoral
 import com.example.ui.theme.ForestGreenAccent
 import com.example.ui.theme.ForestGreenMint
@@ -338,11 +339,10 @@ fun DailySummaryScreen(
                                 modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CloudDone,
-                                    contentDescription = "Firestore",
-                                    tint = ForestGreenMint,
-                                    modifier = Modifier.size(18.dp)
+                                GoogleBrandMark(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .testTag("google_account_brand_mark")
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
@@ -402,17 +402,11 @@ fun DailySummaryScreen(
                                 contentPadding = PaddingValues(vertical = 12.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // Simple representation of Google "G" using a colored Box if no asset is available
-                                    Surface(
-                                        modifier = Modifier.size(18.dp),
-                                        shape = CircleShape,
-                                        color = Color.White,
-                                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.LightGray)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.Black, fontSize = 12.sp)
-                                        }
-                                    }
+                                    GoogleBrandMark(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .testTag("google_sign_in_brand_mark")
+                                    )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
                                         "Sign in with Google",
@@ -487,11 +481,10 @@ fun DailySummaryScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = "Health Connect",
-                                tint = OffCoral,
-                                modifier = Modifier.size(18.dp)
+                            HealthConnectBrandMark(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .testTag("health_connect_brand_mark")
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
