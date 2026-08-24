@@ -485,6 +485,7 @@ private fun CheckInAlarmCard(
     val alarmIsReady = uiState.hasAlarmNotificationAccess &&
         uiState.hasExactAlarmAccess &&
         uiState.hasFullScreenAlarmAccess
+    val alarmIsActive = uiState.isReminderEnabled && uiState.hasAlarmNotificationAccess
     val customTimeSelected = uiState.reminderHour != null &&
         (uiState.reminderHour !in listOf(9, 12, 18) || uiState.reminderMinute != 0)
 
@@ -543,6 +544,7 @@ private fun CheckInAlarmCard(
                     color = when {
                         !uiState.isReminderEnabled -> MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
                         alarmIsReady -> ForestGreenMint.copy(alpha = 0.2f)
+                        alarmIsActive -> WisteriaLavender.copy(alpha = 0.2f)
                         else -> WisteriaLavender.copy(alpha = 0.2f)
                     }
                 ) {
@@ -550,6 +552,7 @@ private fun CheckInAlarmCard(
                         text = when {
                             !uiState.isReminderEnabled -> "OFF"
                             alarmIsReady -> "READY"
+                            alarmIsActive -> "ACTIVE"
                             else -> "SETUP"
                         },
                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
@@ -557,6 +560,7 @@ private fun CheckInAlarmCard(
                             color = when {
                                 !uiState.isReminderEnabled -> MaterialTheme.colorScheme.onSurfaceVariant
                                 alarmIsReady -> ForestGreenAccent
+                                alarmIsActive -> MaterialTheme.colorScheme.primary
                                 else -> MaterialTheme.colorScheme.primary
                             },
                             fontWeight = FontWeight.Bold,
@@ -663,7 +667,11 @@ private fun CheckInAlarmCard(
                     }
                 } else {
                     Text(
-                        text = "Finish alarm setup",
+                        text = if (uiState.hasAlarmNotificationAccess) {
+                            "Optional alarm upgrades"
+                        } else {
+                            "Finish alarm setup"
+                        },
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     Spacer(modifier = Modifier.height(6.dp))

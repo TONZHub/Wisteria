@@ -215,8 +215,10 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         }
         _uiState.value = alarmState.copy(
             agentStatusMessage = when {
+                !alarmState.hasAlarmNotificationAccess ->
+                    "Check-in alarm saved. Allow notifications so it can alert you."
                 missingAccess.isNotEmpty() ->
-                    "Check-in alarm saved. Finish setup: ${missingAccess.joinToString()}."
+                    "Check-in alarm active. Optional upgrades: ${missingAccess.joinToString()}."
                 precision == AlarmSchedulePrecision.EXACT -> "Daily check-in alarm is ready."
                 else -> "Check-in alarm saved with approximate timing."
             }
