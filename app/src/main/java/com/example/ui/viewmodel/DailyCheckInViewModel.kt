@@ -1,11 +1,13 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.cloud.FirestoreSyncRecord
 import com.example.data.cloud.NightShiftExecution
 import com.example.data.health.HealthConnectManager
+import com.example.data.reminder.AlarmSchedulePrecision
 import com.example.data.reminder.CheckInReminderManager
 import com.example.data.local.WisteriaDatabase
 import com.example.data.local.entity.CareActionEntity
@@ -61,7 +63,10 @@ data class CheckInUiState(
     val themeMode: ThemeMode = ThemeMode.AUTO,
     val reminderHour: Int? = null,
     val reminderMinute: Int? = null,
-    val isReminderEnabled: Boolean = false
+    val isReminderEnabled: Boolean = false,
+    val hasAlarmNotificationAccess: Boolean = false,
+    val hasExactAlarmAccess: Boolean = false,
+    val hasFullScreenAlarmAccess: Boolean = false
 )
 
 class DailyCheckInViewModel(application: Application) : AndroidViewModel(application) {
@@ -106,6 +111,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         )
         refreshLoginState()
         checkHealthState()
+        refreshReminderState()
         loadChatHistory()
     }
 
@@ -198,19 +204,49 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun setReminder(hour: Int, minute: Int) {
-        android.util.Log.d("Wisteria", "DailyCheckInViewModel: setReminder at $hour:$minute")
-        _uiState.value = _uiState.value.copy(
-            reminderHour = hour,
-            reminderMinute = minute,
-            isReminderEnabled = true
+        android.util.Log.d("Wisteria", "DailyCheckInViewModel: set check-in alarm at $hour:$minute")
+        val precision = reminderManager.enableDailyAlarm(hour, minute)
+        refreshReminderState()
+        val alarmState = _uiState.value
+        val missingAccess = buildList {
+            if (!alarmState.hasAlarmNotificationAccess) add("notifications")
+            if (!alarmState.hasExactAlarmAccess) add("precise timing")
+            if (!alarmState.hasFullScreenAlarmAccess) add("full-screen display")
+        }
+        _uiState.value = alarmState.copy(
+            agentStatusMessage = when {
+                missingAccess.isNotEmpty() ->
+                    "Check-in alarm saved. Finish setup: ${missingAccess.joinToString()}."
+                precision == AlarmSchedulePrecision.EXACT -> "Daily check-in alarm is ready."
+                else -> "Check-in alarm saved with approximate timing."
+            }
         )
-        reminderManager.scheduleReminder(hour, minute)
     }
 
     fun disableReminder() {
-        _uiState.value = _uiState.value.copy(isReminderEnabled = false)
-        reminderManager.cancelReminder()
+        reminderManager.disableAlarm()
+        refreshReminderState()
+        _uiState.value = _uiState.value.copy(agentStatusMessage = "Daily check-in alarm disabled.")
     }
+
+    fun refreshReminderState(rescheduleIfEnabled: Boolean = false) {
+        if (rescheduleIfEnabled) {
+            reminderManager.scheduleNextDailyAlarm()
+        }
+        val alarm = reminderManager.snapshot()
+        _uiState.value = _uiState.value.copy(
+            reminderHour = alarm.hour.takeIf { alarm.enabled },
+            reminderMinute = alarm.minute.takeIf { alarm.enabled },
+            isReminderEnabled = alarm.enabled,
+            hasAlarmNotificationAccess = alarm.hasNotificationAccess,
+            hasExactAlarmAccess = alarm.hasExactAlarmAccess,
+            hasFullScreenAlarmAccess = alarm.hasFullScreenAccess
+        )
+    }
+
+    fun getExactAlarmSettingsIntent(): Intent? = reminderManager.exactAlarmSettingsIntent()
+
+    fun getFullScreenAlarmSettingsIntent(): Intent? = reminderManager.fullScreenSettingsIntent()
 
     private fun loadTextureSummary() {
         viewModelScope.launch {

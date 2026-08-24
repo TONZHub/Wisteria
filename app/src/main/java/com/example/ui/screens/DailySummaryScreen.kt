@@ -18,11 +18,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Button
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -46,10 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.app.TimePickerDialog
 import androidx.compose.foundation.clickable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material3.CircularProgressIndicator
@@ -82,6 +80,9 @@ fun DailySummaryScreen(
     onConnectHealth: () -> Unit,
     onSetReminder: (Int, Int) -> Unit,
     onDisableReminder: () -> Unit,
+    onRequestNotificationAccess: () -> Unit,
+    onRequestExactAlarmAccess: () -> Unit,
+    onRequestFullScreenAlarmAccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val pulse = uiState.latestPulse
@@ -203,6 +204,18 @@ fun DailySummaryScreen(
             }
         }
 
+        item {
+            CheckInAlarmCard(
+                uiState = uiState,
+                openTimePicker = openTimePicker,
+                onSetReminder = onSetReminder,
+                onDisableReminder = onDisableReminder,
+                onRequestNotificationAccess = onRequestNotificationAccess,
+                onRequestExactAlarmAccess = onRequestExactAlarmAccess,
+                onRequestFullScreenAlarmAccess = onRequestFullScreenAlarmAccess
+            )
+        }
+
         // Optional ideas remain inside Wisteria until the person chooses one.
         item {
             Row(
@@ -230,77 +243,7 @@ fun DailySummaryScreen(
             }
         }
 
-        if (careActions.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Daily Reminder",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (uiState.isReminderEnabled && uiState.reminderHour != null && uiState.reminderMinute != null) 
-                                "Scheduled for ${formatTime(uiState.reminderHour, uiState.reminderMinute)}"
-                            else 
-                                "Not scheduled. Tap to set a daily check-in time.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
-                            modifier = Modifier.clickable { openTimePicker() }
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(9 to 0, 12 to 0, 18 to 0).forEach { (h, m) ->
-                                OutlinedButton(
-                                    onClick = { onSetReminder(h, m) },
-                                    modifier = Modifier.weight(1f),
-                                    contentPadding = PaddingValues(4.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    border = if (uiState.reminderHour == h && uiState.reminderMinute == m)
-                                        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                                    else
-                                        null
-                                ) {
-                                    Text(formatTime(h, m), fontSize = 10.sp)
-                                }
-                            }
-                            
-                            OutlinedButton(
-                                onClick = { openTimePicker() },
-                                modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(4.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                border = if (uiState.reminderHour != null && listOf(9, 12, 18).none { it == uiState.reminderHour } || 
-                                          (uiState.reminderHour != null && uiState.reminderMinute != 0))
-                                    androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                                else
-                                    null
-                            ) {
-                                Text("Set...", fontSize = 10.sp)
-                            }
-                        }
-                        
-                        if (uiState.isReminderEnabled) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Button(
-                                onClick = onDisableReminder,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Disable Reminders", fontSize = 11.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
+        if (careActions.isNotEmpty()) {
             items(careActions, key = { it.id }) { action ->
                 CareActionRow(
                     item = action,
@@ -525,6 +468,291 @@ fun DailySummaryScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CheckInAlarmCard(
+    uiState: CheckInUiState,
+    openTimePicker: () -> Unit,
+    onSetReminder: (Int, Int) -> Unit,
+    onDisableReminder: () -> Unit,
+    onRequestNotificationAccess: () -> Unit,
+    onRequestExactAlarmAccess: () -> Unit,
+    onRequestFullScreenAlarmAccess: () -> Unit
+) {
+    val alarmIsReady = uiState.hasAlarmNotificationAccess &&
+        uiState.hasExactAlarmAccess &&
+        uiState.hasFullScreenAlarmAccess
+    val customTimeSelected = uiState.reminderHour != null &&
+        (uiState.reminderHour !in listOf(9, 12, 18) || uiState.reminderMinute != 0)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("check_in_alarm_card"),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.52f)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Alarm,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(9.dp))
+                    Column {
+                        Text(
+                            text = "Check-In Alarm",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "User-set · daily · always dismissible",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 10.sp
+                            )
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = when {
+                        !uiState.isReminderEnabled -> MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        alarmIsReady -> ForestGreenMint.copy(alpha = 0.2f)
+                        else -> WisteriaLavender.copy(alpha = 0.2f)
+                    }
+                ) {
+                    Text(
+                        text = when {
+                            !uiState.isReminderEnabled -> "OFF"
+                            alarmIsReady -> "READY"
+                            else -> "SETUP"
+                        },
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = when {
+                                !uiState.isReminderEnabled -> MaterialTheme.colorScheme.onSurfaceVariant
+                                alarmIsReady -> ForestGreenAccent
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 9.sp
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = if (
+                    uiState.isReminderEnabled &&
+                    uiState.reminderHour != null &&
+                    uiState.reminderMinute != null
+                ) {
+                    "Every day at ${formatTime(uiState.reminderHour, uiState.reminderMinute)}. " +
+                        "Wisteria can open directly to your 3-second check-in."
+                } else {
+                    "Choose a time to enable a full-screen check-in alarm. Wisteria will only " +
+                        "appear because you scheduled it."
+                },
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                ),
+                modifier = Modifier.clickable(onClick = openTimePicker)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(9 to 0, 12 to 0, 18 to 0).forEach { (hour, minute) ->
+                    OutlinedButton(
+                        onClick = { onSetReminder(hour, minute) },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 3.dp, vertical = 5.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        border = if (
+                            uiState.reminderHour == hour && uiState.reminderMinute == minute
+                        ) {
+                            androidx.compose.foundation.BorderStroke(
+                                1.5.dp,
+                                MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            null
+                        }
+                    ) {
+                        Text(formatTime(hour, minute), fontSize = 10.sp)
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = openTimePicker,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 3.dp, vertical = 5.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = if (customTimeSelected) {
+                        androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        null
+                    }
+                ) {
+                    Text("Set…", fontSize = 10.sp)
+                }
+            }
+
+            if (uiState.isReminderEnabled) {
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (alarmIsReady) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = ForestGreenMint.copy(alpha = 0.13f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = ForestGreenAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Notifications, exact timing, and full-screen display are ready.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Finish alarm setup",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    if (!uiState.hasAlarmNotificationAccess) {
+                        AlarmAccessRow(
+                            icon = Icons.Default.NotificationsActive,
+                            title = "Notifications",
+                            detail = "Let the alarm alert you",
+                            onAllow = onRequestNotificationAccess,
+                            testTag = "allow_alarm_notifications"
+                        )
+                    }
+                    if (!uiState.hasExactAlarmAccess) {
+                        AlarmAccessRow(
+                            icon = Icons.Default.Schedule,
+                            title = "Precise timing",
+                            detail = "Fire at the time you chose",
+                            onAllow = onRequestExactAlarmAccess,
+                            testTag = "allow_exact_alarm"
+                        )
+                    }
+                    if (!uiState.hasFullScreenAlarmAccess) {
+                        AlarmAccessRow(
+                            icon = Icons.Default.Fullscreen,
+                            title = "Full-screen display",
+                            detail = "Show over the lock screen",
+                            onAllow = onRequestFullScreenAlarmAccess,
+                            testTag = "allow_full_screen_alarm"
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onDisableReminder,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("disable_check_in_alarm"),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Disable check-in alarm", fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlarmAccessRow(
+    icon: ImageVector,
+    title: String,
+    detail: String,
+    onAllow: () -> Unit,
+    testTag: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp
+                )
+            )
+        }
+        OutlinedButton(
+            onClick = onAllow,
+            modifier = Modifier.testTag(testTag),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 3.dp),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            Text("Allow", fontSize = 10.sp)
         }
     }
 }

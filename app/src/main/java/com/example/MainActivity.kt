@@ -67,18 +67,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("Wisteria", "MainActivity: onCreate")
-        
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-        }
-        
+
         configureFirebaseAppCheck(this)
         enableEdgeToEdge()
         
         viewModel = androidx.lifecycle.ViewModelProvider(this)[DailyCheckInViewModel::class.java]
         
-        val triggerTakeover = intent.getBooleanExtra("trigger_takeover", false)
+        val triggerTakeover = intent.getBooleanExtra(EXTRA_TRIGGER_TAKEOVER, false)
         Log.d("Wisteria", "MainActivity: triggerTakeover=$triggerTakeover")
         if (triggerTakeover) {
             viewModel.openFullScreenTakeover()
@@ -92,11 +87,23 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val triggerTakeover = intent.getBooleanExtra("trigger_takeover", false)
+        val triggerTakeover = intent.getBooleanExtra(EXTRA_TRIGGER_TAKEOVER, false)
         Log.d("Wisteria", "MainActivity: onNewIntent, triggerTakeover=$triggerTakeover")
         if (triggerTakeover) {
             viewModel.openFullScreenTakeover()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::viewModel.isInitialized) {
+            // Reschedule with exact timing as soon as the person returns from system settings.
+            viewModel.refreshReminderState(rescheduleIfEnabled = true)
+        }
+    }
+
+    companion object {
+        const val EXTRA_TRIGGER_TAKEOVER = "trigger_takeover"
     }
 }
 
@@ -150,8 +157,27 @@ fun WisteriaMainApp(
 
         val notificationLauncher = rememberLauncherForActivityResult(
             androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-        ) { isGranted ->
-            // Handle notification permission result if needed
+        ) {
+            viewModel.refreshReminderState(rescheduleIfEnabled = true)
+        }
+
+        val requestNotificationAccess: () -> Unit = {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                viewModel.refreshReminderState()
+            }
+        }
+
+        val setCheckInAlarm: (Int, Int) -> Unit = { hour, minute ->
+            viewModel.setReminder(hour, minute)
+            if (
+                android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
 
         var pendingVoiceAction by remember { mutableStateOf<VoiceStartAction?>(null) }
@@ -181,12 +207,6 @@ fun WisteriaMainApp(
             } else {
                 pendingVoiceAction = action
                 microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            }
-        }
-
-        LaunchedEffect(Unit) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
         }
 
@@ -519,18 +539,29 @@ fun WisteriaMainApp(
                             onStartCall = { requestVoiceAction(VoiceStartAction.CALL) }
                         )
                         WisteriaTab.INSIGHTS -> DailySummaryScreen(
-                        uiState = uiState,
-                        latestCheckIn = latestCheckIn,
-                        careActions = careActions,
-                        onToggleCareAction = { id, done -> viewModel.toggleCareAction(id, done) },
-                        onRunNightShift = { viewModel.runNightShift() },
-                        onTriggerFirestoreSync = { viewModel.triggerFirestoreSync() },
-                        onSignInWithGoogle = onSignInWithGoogle,
-                        onSignOut = { viewModel.signOut() },
-                        onConnectHealth = onConnectHealth,
-                        onSetReminder = { h, m -> viewModel.setReminder(h, m) },
-                        onDisableReminder = { viewModel.disableReminder() }
-                    )
+                            uiState = uiState,
+                            latestCheckIn = latestCheckIn,
+                            careActions = careActions,
+                            onToggleCareAction = { id, done -> viewModel.toggleCareAction(id, done) },
+                            onRunNightShift = { viewModel.runNightShift() },
+                            onTriggerFirestoreSync = { viewModel.triggerFirestoreSync() },
+                            onSignInWithGoogle = onSignInWithGoogle,
+                            onSignOut = { viewModel.signOut() },
+                            onConnectHealth = onConnectHealth,
+                            onSetReminder = setCheckInAlarm,
+                            onDisableReminder = { viewModel.disableReminder() },
+                            onRequestNotificationAccess = requestNotificationAccess,
+                            onRequestExactAlarmAccess = {
+                                viewModel.getExactAlarmSettingsIntent()?.let { intent ->
+                                    context.startActivity(intent)
+                                }
+                            },
+                            onRequestFullScreenAlarmAccess = {
+                                viewModel.getFullScreenAlarmSettingsIntent()?.let { intent ->
+                                    context.startActivity(intent)
+                                }
+                            }
+                        )
                         WisteriaTab.RHYTHM_CARE -> RhythmMemoryScreen(
                             uiState = uiState,
                             memories = memories
