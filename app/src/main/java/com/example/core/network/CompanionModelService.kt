@@ -19,7 +19,7 @@ class FirebaseCompanionModelService : CompanionModelService {
         return try {
             val model = com.google.firebase.Firebase
                 .ai(backend = com.google.firebase.ai.type.GenerativeBackend.agentPlatform())
-                .generativeModel(modelName = "gemini-2.5-flash")
+                .generativeModel(modelName = "gemini-3.5-flash")
 
             val result = model.generateContent(prompt)
             val text = result.text?.trim()
