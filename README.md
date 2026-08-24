@@ -41,6 +41,8 @@ The demo-data button is explicit: every sample starts with `Demo:`, stays local,
 - Everyday textures kept separate: bright, steady, heavy, off, or unlabeled.
 - User-triggered Night Shift learning from real heavy-to-off stretches in local history—no fixed schedule.
 - Sample-based confidence that grows only with saved history and observed transitions.
+- A plain-language history share that includes saved dates, the person's own words, everyday textures, and ratings without exporting Health Connect data or assigning a body phase or cause.
+- An always-available support screen with deliberate, user-started call, text, and helpline-directory actions; Wisteria never contacts anyone automatically.
 - Stateful, in-memory companion sessions through [Google ADK Kotlin 0.8.0](https://github.com/google/adk-kotlin).
 - Optional ADK companion wording through Firebase AI Logic and `gemini-3.5-flash`, with a visible per-turn runtime receipt.
 - Optional, button-triggered Firestore sync under the signed-in Google account's Firebase user ID.
@@ -127,6 +129,8 @@ The tests cover everyday-language selection, intent routing, ADK runtime receipt
 - Alarm notifications contain only the generic phrase “Your 3-second check-in is ready”; no saved check-in or Health Connect data appears on the lock screen.
 - ADK conversation events stay in memory only and become inaccessible when Wisteria starts or ends a conversation; they are not written to Room or Firestore.
 - Firestore sync requires an explicit button tap.
+- Shared history is created only when the person taps its button. It contains saved check-ins, not Health Connect records, raw audio, or companion conversation history.
+- Support actions open the device phone, messaging, or browser app and wait for the person to continue; Wisteria never places a call, sends a text, or alerts someone by itself.
 - App data is excluded from Android backup.
 - The repository contains no Firebase configuration, developer API key, or personal planning artifact in its current tree.
 
