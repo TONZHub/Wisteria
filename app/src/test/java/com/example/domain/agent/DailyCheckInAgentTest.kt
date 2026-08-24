@@ -1,6 +1,7 @@
 package com.example.domain.agent
 
 import com.example.domain.agent.model.AgentMessage
+import com.example.domain.agent.model.AgentTurnIntent
 import com.example.domain.agent.model.CareActionData
 import com.example.domain.agent.model.DailyPulseData
 import com.example.domain.agent.model.DailyTexture
@@ -77,21 +78,23 @@ class DailyCheckInAgentTest {
     }
 
     @Test
-    fun `an unfamiliar word stays unlabeled`() = runTest {
-        val response = buildAgent().processUserTurn(
+    fun `an unfamiliar word stays conversational and does not create a check-in`() = runTest {
+        val recorded = mutableListOf<DailyPulseData>()
+        val response = buildAgent(recordedPulses = recorded).processUserTurn(
             userPrompt = "purple",
             conversationHistory = emptyList(),
             onStateChange = { _, _ -> },
             onToolExecuted = { }
         )
 
-        assertEquals(DailyTexture.UNKNOWN, response.structuredPulse?.texture)
-        assertEquals(0f, response.structuredPulse?.confidenceScore)
+        assertEquals(AgentTurnIntent.GENERAL, response.turnIntent)
+        assertEquals(null, response.structuredPulse)
+        assertTrue(recorded.isEmpty())
     }
 
     @Test
     fun `optional model wording is used when available`() = runTest {
-        val model = FakeCompanionModelService(response = "Saved. Want one easy idea?")
+        val model = FakeCompanionModelService(response = "I hear off. Would one easy idea help?")
         val response = buildAgent(model = model).processUserTurn(
             userPrompt = "I feel off",
             conversationHistory = emptyList(),
@@ -99,7 +102,7 @@ class DailyCheckInAgentTest {
             onToolExecuted = { }
         )
 
-        assertEquals("Saved. Want one easy idea?", response.text)
+        assertEquals("I hear off. Would one easy idea help?", response.text)
         assertEquals(1, model.prompts.size)
     }
 
@@ -134,6 +137,105 @@ class DailyCheckInAgentTest {
 
         assertFalse(response.text.contains("follicular", ignoreCase = true))
         assertTrue(response.text.contains("feels off", ignoreCase = true))
+    }
+
+    @Test
+    fun `a care follow-up does not record another pulse or duplicate ideas`() = runTest {
+        val recorded = mutableListOf<DailyPulseData>()
+        val ideas = mutableListOf<CareActionData>()
+        val agent = buildAgent(recordedPulses = recorded, careActions = ideas)
+
+        agent.processUserTurn(
+            userPrompt = "I feel off",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+        val followUp = agent.processUserTurn(
+            userPrompt = "yes, give me one idea",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(AgentTurnIntent.CARE_REQUEST, followUp.turnIntent)
+        assertEquals(1, recorded.size)
+        assertEquals(3, ideas.size)
+        assertTrue(followUp.toolInvocations.isEmpty())
+        assertTrue(followUp.text.contains("One easy option"))
+    }
+
+    @Test
+    fun `an identical voice turn is recorded only once per session`() = runTest {
+        val recorded = mutableListOf<DailyPulseData>()
+        val ideas = mutableListOf<CareActionData>()
+        val agent = buildAgent(recordedPulses = recorded, careActions = ideas)
+
+        val first = agent.processUserTurn(
+            userPrompt = "I feel off",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+        val repeated = agent.processUserTurn(
+            userPrompt = "I feel off",
+            conversationHistory = listOf(first),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(AgentTurnIntent.DUPLICATE_CHECK_IN, repeated.turnIntent)
+        assertEquals(1, recorded.size)
+        assertEquals(3, ideas.size)
+        assertTrue(repeated.toolInvocations.isEmpty())
+    }
+
+    @Test
+    fun `pattern and reminder questions are read-only turns`() = runTest {
+        val recorded = mutableListOf<DailyPulseData>()
+        val agent = buildAgent(recordedPulses = recorded)
+
+        val pattern = agent.processUserTurn(
+            userPrompt = "What did last week look like?",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+        val reminder = agent.processUserTurn(
+            userPrompt = "Set my reminder for 4",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(AgentTurnIntent.PATTERN_QUESTION, pattern.turnIntent)
+        assertEquals(AgentTurnIntent.REMINDER_CHANGE, reminder.turnIntent)
+        assertTrue(recorded.isEmpty())
+        assertTrue(pattern.toolInvocations.isEmpty())
+        assertTrue(reminder.toolInvocations.isEmpty())
+    }
+
+    @Test
+    fun `starting a new session permits a deliberate matching check-in`() = runTest {
+        val recorded = mutableListOf<DailyPulseData>()
+        val agent = buildAgent(recordedPulses = recorded)
+
+        agent.processUserTurn(
+            userPrompt = "3 (Steady)",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+        agent.startNewSession()
+        val secondSession = agent.processUserTurn(
+            userPrompt = "3 (Steady)",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(AgentTurnIntent.CHECK_IN, secondSession.turnIntent)
+        assertEquals(2, recorded.size)
     }
 
     @Test

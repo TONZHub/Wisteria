@@ -14,6 +14,7 @@ import com.example.data.local.entity.DailyCheckInEntity
 import com.example.data.repository.WisteriaRepository
 import com.example.domain.agent.model.AgentExecutionState
 import com.example.domain.agent.model.AgentMessage
+import com.example.domain.agent.model.AgentTurnIntent
 import com.example.domain.agent.model.CareActionData
 import com.example.domain.agent.model.DailyTexture
 import com.example.domain.agent.model.DailyPulseData
@@ -254,14 +255,22 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     fun submitSingleInputCheckIn(input: String) {
         if (input.isBlank()) return
         closeFullScreenTakeover()
-        sendMessage(input)
+        sendMessageInternal(
+            userText = input,
+            speakResponse = false,
+            requestedIntent = AgentTurnIntent.CHECK_IN
+        )
     }
 
     fun sendMessage(userText: String) {
         sendMessageInternal(userText, speakResponse = false)
     }
 
-    private fun sendMessageInternal(userText: String, speakResponse: Boolean) {
+    private fun sendMessageInternal(
+        userText: String,
+        speakResponse: Boolean,
+        requestedIntent: AgentTurnIntent? = null
+    ) {
         if (userText.isBlank()) return
 
         val userMessage = AgentMessage(
@@ -274,7 +283,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         _uiState.value = _uiState.value.copy(
             messages = updatedMessages,
             agentState = AgentExecutionState.REASONING,
-            agentStatusMessage = "Reading your check-in...",
+            agentStatusMessage = "Understanding this turn…",
             isAgentActive = true
         )
 
@@ -285,6 +294,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
                     userPrompt = userText,
                     conversationHistory = updatedMessages,
                     healthContext = healthContext,
+                    requestedIntent = requestedIntent,
                     onStateChange = { state, status ->
                         _uiState.value = _uiState.value.copy(
                             agentState = state,
@@ -301,12 +311,15 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
                 _uiState.value = _uiState.value.copy(
                     messages = _uiState.value.messages + agentResponse,
                     agentState = AgentExecutionState.IDLE,
-                    agentStatusMessage = "Ready for a check-in",
+                    agentStatusMessage = completedTurnStatus(agentResponse),
                     latestPulse = newPulse,
                     isAgentActive = false
                 )
                 if (speakResponse) {
-                    voiceController.onAgentResponse(agentResponse.text)
+                    voiceController.onAgentResponse(
+                        text = agentResponse.text,
+                        endCallAfterSpeech = agentResponse.turnIntent == AgentTurnIntent.END_SESSION
+                    )
                 }
             } catch (error: Exception) {
                 val fallback = "I couldn't finish that turn. Your text is still here, and you can try again."
@@ -331,9 +344,14 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
 
     fun stopVoiceInput() = voiceController.stopListening()
 
-    fun startVoiceCall() = voiceController.startCall(handsFree = true)
+    fun startVoiceCall() {
+        voiceController.startCall(handsFree = true)
+    }
 
-    fun endVoiceCall() = voiceController.endCall()
+    fun endVoiceCall() {
+        repository.checkInAgent.endSession()
+        voiceController.endCall()
+    }
 
     fun toggleVoiceListening() = voiceController.toggleListening()
 
@@ -346,7 +364,24 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     fun onMicrophonePermissionDenied() = voiceController.onMicrophonePermissionDenied()
 
     fun sendQuickOption(rating: Int, label: String) {
-        sendMessage("$rating ($label)")
+        sendMessageInternal(
+            userText = "$rating ($label)",
+            speakResponse = false,
+            requestedIntent = AgentTurnIntent.CHECK_IN
+        )
+    }
+
+    private fun completedTurnStatus(message: AgentMessage): String = when (message.turnIntent) {
+        AgentTurnIntent.CHECK_IN -> {
+            val saved = message.toolInvocations.any {
+                it.toolName == "RecordSingleInputCheckInTool" && it.status == "SUCCESS"
+            }
+            if (saved) "Check-in saved once." else "Check-in not saved."
+        }
+        AgentTurnIntent.DUPLICATE_CHECK_IN -> "Already saved; duplicate blocked."
+        AgentTurnIntent.REMINDER_CHANGE -> "Reminder unchanged."
+        AgentTurnIntent.END_SESSION -> "Conversation closed."
+        else -> "Ready for a check-in"
     }
 
     fun toggleCareAction(id: String, isCompleted: Boolean) {
@@ -454,6 +489,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun resetConversation() {
+        repository.checkInAgent.startNewSession()
         val initialAgentMessage = AgentMessage(
             id = UUID.randomUUID().toString(),
             sender = MessageSender.AGENT,

@@ -50,10 +50,12 @@ class VoiceConversationController(
     private var suppressNextRecognitionError = false
     private var voiceTurnAwaitingResponse = false
     private var pendingSpeech: String? = null
+    private var shouldEndCallAfterSpeech = false
 
     fun startDictation() = onMain {
         if (_state.value.isCallActive) return@onMain
         voiceTurnAwaitingResponse = false
+        shouldEndCallAfterSpeech = false
         _state.update {
             it.copy(
                 phase = VoicePhase.IDLE,
@@ -70,6 +72,7 @@ class VoiceConversationController(
         cancelListeningInternal()
         textToSpeech?.stop()
         voiceTurnAwaitingResponse = false
+        shouldEndCallAfterSpeech = false
         _state.update {
             it.copy(
                 isCallActive = true,
@@ -89,6 +92,7 @@ class VoiceConversationController(
         textToSpeech?.stop()
         pendingSpeech = null
         voiceTurnAwaitingResponse = false
+        shouldEndCallAfterSpeech = false
         _state.update {
             it.copy(
                 isCallActive = false,
@@ -160,9 +164,10 @@ class VoiceConversationController(
         }
     }
 
-    fun onAgentResponse(text: String) = onMain {
+    fun onAgentResponse(text: String, endCallAfterSpeech: Boolean = false) = onMain {
         if (!voiceTurnAwaitingResponse) return@onMain
         voiceTurnAwaitingResponse = false
+        shouldEndCallAfterSpeech = endCallAfterSpeech && _state.value.isCallActive
         _state.update { it.copy(lastAgentText = text, errorMessage = null) }
 
         if (_state.value.isSpeakerEnabled) {
@@ -383,6 +388,11 @@ class VoiceConversationController(
 
     @MainThread
     private fun finishAgentSpeech(resumeHandsFree: Boolean) {
+        if (shouldEndCallAfterSpeech) {
+            shouldEndCallAfterSpeech = false
+            endCall()
+            return
+        }
         _state.update { it.copy(phase = VoicePhase.IDLE, audioLevel = 0f) }
         if (
             resumeHandsFree &&
