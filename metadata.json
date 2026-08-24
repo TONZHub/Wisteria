@@ -1,6 +1,6 @@
 {
   "name": "Wisteria",
-  "description": "A low-bandwidth Android daily-rhythm companion with local pattern learning, optional Firebase sync, and an optional Firebase AI Logic response layer.",
+  "description": "A low-bandwidth Android daily-rhythm agent with local pattern learning, Google ADK Kotlin sessions, optional Firebase AI Logic wording, and explicit Firestore sync.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

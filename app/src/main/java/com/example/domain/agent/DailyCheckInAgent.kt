@@ -1,9 +1,11 @@
 package com.example.domain.agent
 
 import com.example.core.network.CompanionModelService
-import com.example.core.network.FirebaseCompanionModelService
+import com.example.core.network.CompanionModelReply
+import com.example.core.network.FirebaseAdkCompanionModelService
 import com.example.domain.agent.model.AgentExecutionState
 import com.example.domain.agent.model.AgentMessage
+import com.example.domain.agent.model.AgentRuntimeTrace
 import com.example.domain.agent.model.AgentTurnIntent
 import com.example.domain.agent.model.CareActionData
 import com.example.domain.agent.model.DailyTexture
@@ -18,7 +20,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 class DailyCheckInAgent(
-    private val modelService: CompanionModelService = FirebaseCompanionModelService(),
+    private val modelService: CompanionModelService = FirebaseAdkCompanionModelService(),
     private val tools: List<AgentTool>,
     private val turnRouter: AgentTurnRouter = AgentTurnRouter(),
     private val toolPolicy: AgentToolPolicy = AgentToolPolicy()
@@ -33,6 +35,7 @@ class DailyCheckInAgent(
         synchronized(sessionLock) {
             sessionEpoch += 1
             sessionState = AgentSessionState()
+            modelService.startNewSession()
         }
     }
 
@@ -40,6 +43,7 @@ class DailyCheckInAgent(
         synchronized(sessionLock) {
             sessionEpoch += 1
             sessionState = AgentSessionState()
+            modelService.endSession()
         }
     }
 
@@ -70,7 +74,7 @@ class DailyCheckInAgent(
                 userPrompt = userPrompt
             )
 
-            val modelResponse = if (shouldAskModel(decision.intent)) {
+            val modelReply = if (shouldAskModel(decision.intent)) {
                 val modelPrompt = buildModelPrompt(
                     userPrompt = userPrompt,
                     history = conversationHistory,
@@ -78,15 +82,22 @@ class DailyCheckInAgent(
                     intent = decision.intent,
                     currentPulse = sessionAtStart.currentPulse
                 )
-                runCatching { modelService.generateReply(modelPrompt) }
-                    .getOrNull()
-                    ?.takeIf { it.isNotBlank() }
-                    ?.takeIf { usesAllowedWording(it, decision.intent) }
+                val candidate = runCatching { modelService.generateReply(modelPrompt) }.getOrNull()
+                if (
+                    candidate != null &&
+                    candidate.text.isNotBlank() &&
+                    usesAllowedWording(candidate.text, decision.intent)
+                ) {
+                    candidate
+                } else {
+                    if (candidate != null) modelService.startNewSession()
+                    null
+                }
             } else {
                 null
             }
 
-            val generatedText = modelResponse ?: localResponse
+            val generatedText = modelReply?.text ?: localResponse
             val executedTools = mutableListOf<ToolCallRecord>()
 
             if (pulse != null) {
@@ -157,6 +168,9 @@ class DailyCheckInAgent(
                     sessionState = nextSessionState
                 }
             }
+            if (decision.intent == AgentTurnIntent.END_SESSION) {
+                modelService.endSession()
+            }
 
             onStateChange(
                 AgentExecutionState.COMPLETED,
@@ -167,7 +181,8 @@ class DailyCheckInAgent(
                 id = UUID.randomUUID().toString(),
                 sender = MessageSender.AGENT,
                 text = generatedText,
-                thoughtTrace = buildReasoningTrace(decision, modelResponse != null, checkInSaved),
+                thoughtTrace = buildReasoningTrace(decision, modelReply, checkInSaved),
+                runtimeTrace = modelReply?.toRuntimeTrace(),
                 toolInvocations = executedTools,
                 structuredPulse = if (decision.intent == AgentTurnIntent.CHECK_IN) pulse else null,
                 turnIntent = decision.intent
@@ -218,34 +233,18 @@ class DailyCheckInAgent(
             history
         }
 
-        val transcript = priorHistory.takeLast(6).joinToString("\n") { message ->
-            val role = if (message.sender == MessageSender.USER) "User" else "Wisteria"
-            "$role: ${message.text}"
-        }
         val sessionSummary = currentPulse?.let {
             "A check-in already exists in this conversation: ${it.textureLabel.lowercase()} (${it.ratingValue}/5)."
         } ?: "No check-in has been saved in this conversation yet."
 
         return """
-            You are Wisteria, a warm, concise everyday check-in companion.
-
-            Safety and truth rules:
-            - Reply in one or two sentences and ask at most one question.
-            - Use only everyday feeling words: bright, steady, heavy, or off.
-            - Never turn a feeling into a body phase, condition, cause, or certainty.
-            - Never mention "luteal", "follicular", "menstrual", "period", or "cycle" in your response.
-            - Offer gentle options, never instructions.
-            - Never claim that anything was saved, logged, recorded, changed, or updated. The app reports tool results separately.
-            - Do not mention implementation details.
-
+            This turn has already passed through Wisteria's deterministic local router.
             Local turn classification (FINAL): $intent
             $sessionSummary
+            Prior visible message count: ${priorHistory.size}
 
             Background Context (SILENT - DO NOT MENTION):
             ${healthContext ?: "No additional health signals."}
-
-            Recent conversation:
-            ${transcript.ifBlank { "No earlier messages." }}
 
             Current turn: $userPrompt
         """.trimIndent()
@@ -329,11 +328,13 @@ class DailyCheckInAgent(
 
     private fun buildReasoningTrace(
         decision: AgentTurnDecision,
-        usedModel: Boolean,
+        modelReply: CompanionModelReply?,
         checkInSaved: Boolean
     ): String {
-        val wordingSource = if (usedModel) {
-            "Firebase AI Logic shaped the wording after the local decision."
+        val wordingSource = if (modelReply != null) {
+            val shortSession = modelReply.sessionId.takeLast(8)
+            "${modelReply.runtime} ran ${modelReply.model} in in-memory session …$shortSession " +
+                "to shape wording after the local decision."
         } else {
             "Local companion wording was used."
         }
@@ -349,6 +350,14 @@ class DailyCheckInAgent(
         }
         return "${decision.rationale} $wordingSource $writeResult"
     }
+
+    private fun CompanionModelReply.toRuntimeTrace(): AgentRuntimeTrace = AgentRuntimeTrace(
+        framework = runtime,
+        model = model,
+        sessionId = sessionId,
+        eventCount = eventCount,
+        resolvedModelVersion = resolvedModelVersion
+    )
 
     private fun reasoningStatus(intent: AgentTurnIntent): String = when (intent) {
         AgentTurnIntent.CHECK_IN -> "Reading this check-in…"
