@@ -17,6 +17,17 @@ enum class MessageSender {
     TOOL_RESULT
 }
 
+enum class AgentTurnIntent {
+    CHECK_IN,
+    CARE_REQUEST,
+    PATTERN_QUESTION,
+    REMINDER_CHANGE,
+    FOLLOW_UP,
+    END_SESSION,
+    GENERAL,
+    DUPLICATE_CHECK_IN
+}
+
 enum class DailyTexture {
     BRIGHT,
     STEADY,
@@ -64,5 +75,6 @@ data class AgentMessage(
     val timestamp: Long = System.currentTimeMillis(),
     val thoughtTrace: String? = null,
     val toolInvocations: List<ToolCallRecord> = emptyList(),
-    val structuredPulse: DailyPulseData? = null
+    val structuredPulse: DailyPulseData? = null,
+    val turnIntent: AgentTurnIntent? = null
 )

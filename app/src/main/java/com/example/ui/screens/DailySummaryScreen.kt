@@ -496,11 +496,11 @@ fun DailySummaryScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    text = "Google Health Connect",
+                                    text = "Health Connect integration",
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                                 )
                                 Text(
-                                    text = if (uiState.isHealthConnected) "Connected · reading sleep/steps" else "Not connected · integration optional",
+                                    text = uiState.healthConnectionSummary,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,
@@ -510,22 +510,24 @@ fun DailySummaryScreen(
                             }
                         }
 
-                        if (!uiState.isHealthConnected) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (uiState.isHealthConnected) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Connected",
+                                    tint = ForestGreenMint,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
                             OutlinedButton(
                                 onClick = onConnectHealth,
-                                modifier = Modifier.testTag("connect_health_button"),
+                                modifier = Modifier.testTag("manage_health_button"),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("Connect", fontSize = 11.sp)
+                                Text(if (uiState.isHealthConnected) "Manage" else "Connect", fontSize = 11.sp)
                             }
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Connected",
-                                tint = ForestGreenMint,
-                                modifier = Modifier.size(20.dp).padding(end = 8.dp)
-                            )
                         }
                     }
                 }

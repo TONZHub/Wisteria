@@ -135,10 +135,7 @@ fun WisteriaMainApp(
             isOpen = uiState.isFullScreenTakeoverActive,
             isOffDay = uiState.latestPulse.isOffDay,
             onDismiss = { viewModel.closeFullScreenTakeover() },
-            onSubmitInput = { input ->
-                viewModel.sendMessage(input)
-                viewModel.closeFullScreenTakeover()
-            }
+            onSubmitInput = viewModel::submitSingleInputCheckIn
         )
 
         var currentTab by remember { mutableStateOf(WisteriaTab.DAILY_PULSE) }
@@ -147,8 +144,8 @@ fun WisteriaMainApp(
 
         val healthLauncher = rememberLauncherForActivityResult(
             PermissionController.createRequestPermissionResultContract()
-        ) { granted ->
-            viewModel.onHealthPermissionsResult(granted.containsAll(viewModel.getHealthPermissions()))
+        ) {
+            viewModel.onHealthPermissionsResult()
         }
 
         val notificationLauncher = rememberLauncherForActivityResult(

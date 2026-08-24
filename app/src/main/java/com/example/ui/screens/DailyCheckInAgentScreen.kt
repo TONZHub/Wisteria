@@ -349,7 +349,7 @@ fun DailyCheckInAgentScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Saving your check-in...",
+                            text = uiState.agentStatusMessage,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -650,6 +650,31 @@ fun CalmMessageBubble(
                     )
                 )
 
+                if (!isUser && message.toolInvocations.isNotEmpty()) {
+                    val checkInSaved = message.toolInvocations.any {
+                        it.toolName == "RecordSingleInputCheckInTool" && it.status == "SUCCESS"
+                    }
+                    val careIdeasSaved = message.toolInvocations.count {
+                        it.toolName == "TriggerProactiveCareActionTool" && it.status == "SUCCESS"
+                    }
+                    val checkInFailed = message.toolInvocations.any {
+                        it.toolName == "RecordSingleInputCheckInTool" && it.status != "SUCCESS"
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (checkInSaved) {
+                            TurnReceipt(text = "✓ Check-in saved once")
+                        }
+                        if (careIdeasSaved > 0) {
+                            TurnReceipt(text = "✓ $careIdeasSaved optional ideas saved locally")
+                        }
+                        if (checkInFailed) {
+                            TurnReceipt(text = "Check-in could not be saved")
+                        }
+                    }
+                }
+
                 if (!isUser && showTrace && !message.thoughtTrace.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
@@ -669,5 +694,22 @@ fun CalmMessageBubble(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TurnReceipt(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall.copy(
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            ),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }

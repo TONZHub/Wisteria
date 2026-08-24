@@ -12,17 +12,23 @@ import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+
+data class HealthAccessStatus(
+    val hasAnyAccess: Boolean,
+    val summary: String
+)
 
 class HealthConnectManager(private val context: Context) {
     private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
 
-    val permissions = setOf(
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(MenstruationPeriodRecord::class)
-    )
+    private val sleepPermission = HealthPermission.getReadPermission(SleepSessionRecord::class)
+    private val stepsPermission = HealthPermission.getReadPermission(StepsRecord::class)
+    private val timingPermission = HealthPermission.getReadPermission(MenstruationPeriodRecord::class)
+
+    val permissions = setOf(sleepPermission, stepsPermission, timingPermission)
 
     private val _isAvailable = MutableStateFlow(false)
     val isAvailable: StateFlow<Boolean> = _isAvailable
@@ -36,10 +42,25 @@ class HealthConnectManager(private val context: Context) {
         _isAvailable.value = status == HealthConnectClient.SDK_AVAILABLE
     }
 
-    suspend fun hasAllPermissions(): Boolean {
-        if (!_isAvailable.value) return false
-        val granted = healthConnectClient.permissionController.getGrantedPermissions()
-        return granted.containsAll(permissions)
+    suspend fun getAccessStatus(): HealthAccessStatus {
+        if (!_isAvailable.value) {
+            return HealthAccessStatus(false, "Not connected · integration optional")
+        }
+
+        val granted = runCatching {
+            healthConnectClient.permissionController.getGrantedPermissions()
+        }.getOrDefault(emptySet())
+        val labels = buildList {
+            if (sleepPermission in granted) add("sleep")
+            if (stepsPermission in granted) add("steps")
+            if (timingPermission in granted) add("period timing")
+        }
+
+        return if (labels.isEmpty()) {
+            HealthAccessStatus(false, "Not connected · integration optional")
+        } else {
+            HealthAccessStatus(true, "Connected · ${labels.joinToString()}")
+        }
     }
 
     fun getHealthConnectInstallIntent(): Intent {
@@ -52,32 +73,56 @@ class HealthConnectManager(private val context: Context) {
         }
     }
 
-    suspend fun fetchLastCycleContext(): String? {
-        if (!hasAllPermissions()) return null
-        
-        try {
-            // Health Connect often uses Instant for time range filters
-            val now = Instant.now()
-            val thirtyFiveDaysAgo = now.minus(35, ChronoUnit.DAYS)
-            
-            val response = healthConnectClient.readRecords(
-                ReadRecordsRequest(
-                    recordType = MenstruationPeriodRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(thirtyFiveDaysAgo, now)
-                )
-            )
-            
-            val lastPeriod = response.records.maxByOrNull { it.startTime } ?: return null
-            val daysSinceStart = ChronoUnit.DAYS.between(lastPeriod.startTime, now)
-            
-            return when {
-                daysSinceStart < 7 -> "Phase: Menstrual (Day ${daysSinceStart + 1})"
-                daysSinceStart < 14 -> "Phase: Follicular"
-                daysSinceStart < 17 -> "Phase: Ovulatory"
-                else -> "Phase: Luteal"
-            }
-        } catch (e: Exception) {
-            return null
-        }
+    /**
+     * Reads only permissions the person granted, then reduces records to a tone-only instruction.
+     * No raw Health Connect value, date, or inferred label is returned to the conversational layer.
+     */
+    suspend fun fetchPrivateResponseContext(): String? {
+        if (!_isAvailable.value) return null
+
+        val granted = runCatching {
+            healthConnectClient.permissionController.getGrantedPermissions()
+        }.getOrDefault(emptySet())
+        if (granted.isEmpty()) return null
+
+        val now = Instant.now()
+        val signals = PrivateHealthSignals(
+            recentSleepHours = if (sleepPermission in granted) readRecentSleepHours(now) else null,
+            recentSteps = if (stepsPermission in granted) readRecentSteps(now) else null,
+            daysSinceLoggedStart = if (timingPermission in granted) readDaysSinceLoggedStart(now) else null
+        )
+        return PrivateHealthContextPolicy.modelToneInstruction(signals)
     }
+
+    private suspend fun readRecentSleepHours(now: Instant): Double? = runCatching {
+        val response = healthConnectClient.readRecords(
+            ReadRecordsRequest(
+                recordType = SleepSessionRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(now.minus(36, ChronoUnit.HOURS), now)
+            )
+        )
+        val latest = response.records.maxByOrNull { it.endTime } ?: return@runCatching null
+        Duration.between(latest.startTime, latest.endTime).toMinutes() / 60.0
+    }.getOrNull()
+
+    private suspend fun readRecentSteps(now: Instant): Long? = runCatching {
+        val response = healthConnectClient.readRecords(
+            ReadRecordsRequest(
+                recordType = StepsRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(now.minus(24, ChronoUnit.HOURS), now)
+            )
+        )
+        response.records.takeIf { it.isNotEmpty() }?.sumOf { it.count }
+    }.getOrNull()
+
+    private suspend fun readDaysSinceLoggedStart(now: Instant): Long? = runCatching {
+        val response = healthConnectClient.readRecords(
+            ReadRecordsRequest(
+                recordType = MenstruationPeriodRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(now.minus(35, ChronoUnit.DAYS), now)
+            )
+        )
+        val latest = response.records.maxByOrNull { it.startTime } ?: return@runCatching null
+        ChronoUnit.DAYS.between(latest.startTime, now).coerceAtLeast(0L)
+    }.getOrNull()
 }
