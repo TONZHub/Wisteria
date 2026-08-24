@@ -1,0 +1,58 @@
+name: Android CI
+
+on:
+  workflow_dispatch: {}
+  pull_request: {}
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FIREBASE_CONFIG_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Configure optional Firebase demo build
+        if: env.FIREBASE_CONFIG_B64 != ''
+        run: printf '%s' "$FIREBASE_CONFIG_B64" | base64 --decode > app/google-services.json
+
+      - name: Test and build debug APK
+        run: ./gradlew testDebugUnitTest assembleDebug --stacktrace
+
+      - name: Upload unit-test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: wisteria-unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: wisteria-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14

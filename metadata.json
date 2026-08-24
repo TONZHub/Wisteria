@@ -1,0 +1,6 @@
+{
+  "name": "Wisteria",
+  "description": "A low-bandwidth Android daily-rhythm companion with local pattern learning, optional Firebase sync, and an optional Firebase AI Logic response layer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
