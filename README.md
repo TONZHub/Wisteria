@@ -6,6 +6,18 @@
 
 Wisteria is a local-first Android prototype that turns a number, emoji, or everyday word into a gentle daily record. It uses four intentionally plain textures—**bright, steady, heavy, and off**—and never assigns a body phase or explains why someone feels a certain way.
 
+## Hackathon snapshot
+
+Wisteria was created during the All Things Agentic Hackathon submission period; development began on **August 22, 2026**, with no Wisteria application code predating August 3. It enters the **Collaborative Partner** category.
+
+| Required technology | Wisteria implementation |
+| --- | --- |
+| Gemini 3.5 or newer | Firebase AI Logic → Agent Platform Gemini API → `gemini-3.5-flash` |
+| Google agent framework | Google ADK Kotlin 0.8.0 using `LlmAgent`, `InMemoryRunner`, and in-memory sessions |
+| Google Cloud infrastructure | Cloud Firestore with Google Sign-In, plus Firebase AI Logic and App Check |
+
+Submission materials live in [`docs/DEVPOST_SUBMISSION.md`](docs/DEVPOST_SUBMISSION.md), and the timed recording plan lives in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+
 ## 60-second judge demo
 
 1. Open **Check-In**, tap the microphone, and say “I feel off.” Wisteria captions the turn, saves one check-in, and speaks its reply. The reply shows both the **Google ADK Kotlin** runtime receipt and the separate local-write receipt.
@@ -62,17 +74,9 @@ Google ADK Kotlin is used for the optional Firebase-backed dialogue runtime and 
 | Identity | Firebase Authentication with Google Sign-In; the resolved UID is used after sign-in |
 | Request protection | Firebase App Check |
 
-```mermaid
-flowchart TD
-    Input["Tap, type, or voice"] --> Router["Local turn router"]
-    Router --> ADK["ADK Kotlin session"]
-    ADK --> Gemini["Firebase AI Logic · Gemini 3.5 Flash"]
-    Router --> Policy["Local tool policy"]
-    Policy --> Local["Room + Night Shift"]
-    Local --> Sync["Explicit Firestore sync"]
-    Health["Health Connect"] --> Reduce["On-device reduction"]
-    Reduce --> ADK
-```
+[![Wisteria architecture: local inputs pass through a local router and tool policy, Google ADK reaches Gemini through Firebase AI Logic, and Firestore receives only explicit syncs.](docs/wisteria-architecture.png)](docs/wisteria-architecture.png)
+
+The editable vector source is [`docs/wisteria-architecture.svg`](docs/wisteria-architecture.svg). Gemini helps with the wording; small local rules decide when Wisteria may save or change anything.
 
 ## Run locally
 
@@ -99,6 +103,8 @@ To test the Check-In Alarm, open **Insights**, choose a time, and finish the thr
 7. Sign in with Google, then explicitly tap **Sync Firestore** when you want to copy the current entry.
 
 No developer Gemini API key belongs in this Android project or APK.
+
+For judge-visible Google Cloud proof, complete a connected check-in, tap **Sync Firestore**, and show the resulting `users/{uid}/daily_timeline/{date}` document in the Firebase or Google Cloud console. The demo should also show the in-app ADK/Gemini runtime receipt and Firebase AI Logic or Agent Platform request evidence. Never expose tokens, OAuth credentials, debug secrets, or billing details while recording.
 
 For connected GitHub Actions artifacts, add the repository secret `GOOGLE_SERVICES_JSON_B64` containing a base64-encoded `google-services.json`. Public CI still builds safely without the secret and uses the local companion response.
 
@@ -128,7 +134,16 @@ The public Git history predates this cleanup. Maintainers should review and rewr
 
 ## Before final submission
 
-- Record an unedited demo of no more than four minutes using the judge flow above, including the ADK receipt and Google Cloud proof.
+- Publish a free judge APK at a stable public GitHub Release URL; a Play Store listing is not required for this path.
+- Record a public demo of no more than four minutes using the judge flow above. Preserve the core agent action as one continuous live take, then use tight edits around navigation and Google Cloud proof.
 - Add two real app screenshots from the connected demo build.
 - Configure `GOOGLE_SERVICES_JSON_B64` and register the App Check debug token for the downloadable connected APK.
-- Choose and add a project license.
+- Upload `docs/wisteria-architecture.png` to Devpost.
+- Copy the final description, technology inventory, data sources, learnings, and disclosures from `docs/DEVPOST_SUBMISSION.md`.
+- Choose and add a project license deliberately.
+
+## Project and third-party disclosure
+
+Development began on **August 22, 2026**, inside the hackathon submission period. No Wisteria application code existed before August 3, 2026, and no pre-existing application code was incorporated.
+
+Wisteria uses standard platform SDKs and open-source libraries—including Kotlin, AndroidX, Jetpack Compose, Room, Google ADK Kotlin, Firebase, Kotlin coroutines, Coil, JUnit, Robolectric, and Roborazzi—under their respective licenses. AI coding assistants supported scaffolding, implementation, debugging, review, testing, and documentation; the entrant supplied the product concept, interaction design, constraints, creative direction, and final decisions.

@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title description">
+  <title id="title">Wisteria agent architecture</title>
+  <desc id="description">Wisteria routes voice, text, and tap input through a deterministic on-device router and tool policy. Google ADK Kotlin maintains the companion session and reaches Gemini 3.5 Flash through Firebase AI Logic. Cloud Firestore receives data only after Google Sign-In and an explicit sync.</desc>
+  <defs>
+    <marker id="purpleArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#76539A"/>
+    </marker>
+    <marker id="greenArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#4F7560"/>
+    </marker>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#3D6FAF"/>
+    </marker>
+    <style>
+      .text { font-family: Inter, Arial, sans-serif; fill: #312B37; }
+      .boundary { font-family: Inter, Arial, sans-serif; font-size: 17px; font-weight: 750; letter-spacing: 2.4px; }
+      .title { font-family: Inter, Arial, sans-serif; font-size: 24px; font-weight: 750; fill: #312B37; }
+      .copy { font-family: Inter, Arial, sans-serif; font-size: 15px; font-weight: 450; fill: #625A68; }
+      .chip { font-family: Inter, Arial, sans-serif; font-size: 13px; font-weight: 750; letter-spacing: 1.1px; }
+      .flow-copy { font-family: Inter, Arial, sans-serif; font-size: 14px; font-weight: 650; fill: #625A68; }
+      .purple-flow { fill: none; stroke: #76539A; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#purpleArrow); }
+      .green-flow { fill: none; stroke: #4F7560; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#greenArrow); }
+      .blue-flow { fill: none; stroke: #3D6FAF; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; marker-end: url(#blueArrow); }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="#F7F4EE"/>
+  <circle cx="1818" cy="35" r="150" fill="#E9E0F2" opacity="0.70"/>
+  <circle cx="1880" cy="1050" r="180" fill="#E1ECE3" opacity="0.80"/>
+
+  <g transform="translate(70 40)">
+    <circle cx="30" cy="30" r="30" fill="#76539A"/>
+    <path d="M30 11 C37 19 37 26 30 31 C23 26 23 19 30 11 Z M11 30 C19 23 26 23 31 30 C26 37 19 37 11 30 Z M49 30 C41 23 34 23 29 30 C34 37 41 37 49 30 Z M30 49 C23 41 23 34 30 29 C37 34 37 41 30 49 Z" fill="#FFFFFF"/>
+    <circle cx="30" cy="30" r="4" fill="#D9C5EA"/>
+  </g>
+  <text x="145" y="78" class="text" font-size="20" font-weight="800" letter-spacing="3">WISTERIA</text>
+  <text x="70" y="145" class="text" font-size="47" font-weight="780">Listens, learns, and acts</text>
+  <text x="950" y="132" class="text" font-size="20" font-weight="550" fill="#625A68">Local-first Android • Google ADK Kotlin • Gemini 3.5 Flash • Firestore</text>
+
+  <rect x="50" y="190" width="1280" height="800" rx="30" fill="#FFFFFF" stroke="#B9A5CD" stroke-width="3"/>
+  <rect x="1360" y="190" width="510" height="800" rx="30" fill="#F0F6F1" stroke="#789381" stroke-width="3"/>
+  <text x="85" y="230" class="boundary" fill="#674788">ON DEVICE • PRIVATE BY DEFAULT</text>
+  <line x1="85" y1="244" x2="420" y2="244" stroke="#D6C7E3" stroke-width="4" stroke-linecap="round"/>
+  <text x="1395" y="230" class="boundary" fill="#416650">GOOGLE CLOUD</text>
+  <text x="1395" y="252" class="text" font-size="14" font-weight="700" letter-spacing="1.4" fill="#66816E">EXPLICIT CONNECTION ONLY</text>
+
+  <g>
+    <rect x="90" y="285" width="230" height="140" rx="22" fill="#F3EDF8" stroke="#C3AFD5" stroke-width="2"/>
+    <rect x="380" y="285" width="230" height="140" rx="22" fill="#FAFAFA" stroke="#C5C3C7" stroke-width="2"/>
+    <rect x="670" y="285" width="230" height="140" rx="22" fill="#F3EDF8" stroke="#BDA6D0" stroke-width="2"/>
+    <rect x="960" y="285" width="230" height="140" rx="22" fill="#FFF3E7" stroke="#D6B68D" stroke-width="2"/>
+  </g>
+
+  <rect x="110" y="305" width="65" height="24" rx="12" fill="#DCCCEA"/>
+  <text x="123" y="322" class="chip" fill="#644685">INPUT</text>
+  <text x="110" y="362" class="title">Human signal</text>
+  <text x="110" y="389" class="copy">Voice • tap • text</text>
+  <text x="110" y="412" class="copy">One word can be enough</text>
+
+  <rect x="400" y="305" width="55" height="24" rx="12" fill="#ECECEF"/>
+  <text x="413" y="322" class="chip" fill="#5F5B65">UI</text>
+  <text x="400" y="362" class="title">Jetpack Compose</text>
+  <text x="400" y="389" class="copy">Check-In • Call • Insights</text>
+  <text x="400" y="412" class="copy">Visible action receipts</text>
+
+  <rect x="690" y="305" width="77" height="24" rx="12" fill="#DCCCEA"/>
+  <text x="703" y="322" class="chip" fill="#644685">ROUTE</text>
+  <text x="690" y="362" class="title">Turn router</text>
+  <text x="690" y="389" class="copy">Intent + session state</text>
+  <text x="690" y="412" class="copy">Stops duplicate turns</text>
+
+  <rect x="980" y="305" width="102" height="24" rx="12" fill="#F0DDC2"/>
+  <text x="993" y="322" class="chip" fill="#7D5A2C">AUTHORIZE</text>
+  <text x="980" y="362" class="title">Local tool policy</text>
+  <text x="980" y="389" class="copy">Allowlist • deny by default</text>
+  <text x="980" y="412" class="copy">Clear intent before writes</text>
+
+  <g>
+    <rect x="90" y="530" width="230" height="140" rx="22" fill="#EDF6EF" stroke="#A7C1AE" stroke-width="2"/>
+    <rect x="380" y="530" width="230" height="140" rx="22" fill="#EDF6EF" stroke="#A7C1AE" stroke-width="2"/>
+    <rect x="670" y="530" width="230" height="140" rx="22" fill="#EBF2FB" stroke="#A9BDD8" stroke-width="2"/>
+    <rect x="960" y="530" width="230" height="140" rx="22" fill="#EDF6EF" stroke="#9FBBA6" stroke-width="2"/>
+  </g>
+
+  <rect x="110" y="550" width="98" height="24" rx="12" fill="#D7E8DB"/>
+  <text x="123" y="567" class="chip" fill="#416650">OPTIONAL</text>
+  <text x="110" y="607" class="title">Health Connect</text>
+  <text x="110" y="634" class="copy">Only granted signals</text>
+  <text x="110" y="657" class="copy">Raw records stay local</text>
+
+  <rect x="400" y="550" width="103" height="24" rx="12" fill="#D7E8DB"/>
+  <text x="413" y="567" class="chip" fill="#416650">PRIVACY</text>
+  <text x="400" y="607" class="title">Private reduction</text>
+  <text x="400" y="634" class="copy">Raw values → tone-only hint</text>
+  <text x="400" y="657" class="copy">No inferred label or cause</text>
+
+  <rect x="690" y="550" width="84" height="24" rx="12" fill="#D8E5F4"/>
+  <text x="703" y="567" class="chip" fill="#365F92">SESSION</text>
+  <text x="690" y="607" class="title">Google ADK Kotlin</text>
+  <text x="690" y="634" class="copy">In-memory LlmAgent</text>
+  <text x="690" y="657" class="copy">At most one model call / turn</text>
+
+  <rect x="980" y="550" width="64" height="24" rx="12" fill="#D7E8DB"/>
+  <text x="993" y="567" class="chip" fill="#416650">LOCAL</text>
+  <text x="980" y="607" class="title">Room timeline</text>
+  <text x="980" y="634" class="copy">One daily record</text>
+  <text x="980" y="657" class="copy">Optional low-effort ideas</text>
+
+  <rect x="90" y="770" width="230" height="115" rx="22" fill="#FFF5E9" stroke="#D6B98F" stroke-width="2"/>
+  <rect x="960" y="770" width="230" height="115" rx="22" fill="#F6EFFA" stroke="#BDA6D0" stroke-width="2"/>
+  <rect x="110" y="790" width="77" height="24" rx="12" fill="#F0DDC2"/>
+  <text x="123" y="807" class="chip" fill="#7D5A2C">OPT-IN</text>
+  <text x="110" y="847" class="title">Check-In Alarm</text>
+  <text x="110" y="874" class="copy">Start • snooze • dismiss</text>
+  <rect x="980" y="790" width="83" height="24" rx="12" fill="#E1D4EC"/>
+  <text x="993" y="807" class="chip" fill="#644685">LEARN</text>
+  <text x="980" y="847" class="title">Night Shift</text>
+  <text x="980" y="874" class="copy">User-triggered pattern brief</text>
+
+  <path d="M320 355 H380" class="purple-flow"/>
+  <path d="M610 355 H670" class="purple-flow"/>
+  <path d="M900 355 H960" class="green-flow"/>
+  <path d="M785 425 V530" class="purple-flow"/>
+  <path d="M320 600 H380" class="green-flow"/>
+  <path d="M610 600 H670" class="green-flow"/>
+  <path d="M1075 425 V530" class="green-flow"/>
+  <path d="M1075 670 V770" class="green-flow"/>
+  <path d="M320 827 H350 V465 H455 V425" class="purple-flow"/>
+  <path d="M960 827 H640 V465 H535 V425" class="purple-flow"/>
+
+  <rect x="1405" y="285" width="420" height="140" rx="23" fill="#EBF2FB" stroke="#8DAED5" stroke-width="2"/>
+  <rect x="1450" y="485" width="330" height="115" rx="22" fill="#FFFFFF" stroke="#8DAED5" stroke-width="2"/>
+  <rect x="1405" y="660" width="420" height="110" rx="22" fill="#FFFFFF" stroke="#A6B8AA" stroke-width="2"/>
+  <rect x="1405" y="825" width="420" height="110" rx="22" fill="#E7F2EA" stroke="#8BAA94" stroke-width="2"/>
+
+  <rect x="1427" y="305" width="139" height="24" rx="12" fill="#D8E5F4"/>
+  <text x="1440" y="322" class="chip" fill="#365F92">MODEL GATEWAY</text>
+  <text x="1427" y="363" class="title">Firebase AI Logic</text>
+  <text x="1427" y="390" class="copy">Agent Platform Gemini API</text>
+
+  <rect x="1472" y="505" width="119" height="24" rx="12" fill="#D8E5F4"/>
+  <text x="1485" y="522" class="chip" fill="#365F92">COMPANION</text>
+  <text x="1472" y="563" class="title">Gemini 3.5 Flash</text>
+  <text x="1472" y="590" class="copy">Concise wording only</text>
+
+  <rect x="1427" y="680" width="105" height="24" rx="12" fill="#E5ECE7"/>
+  <text x="1440" y="697" class="chip" fill="#416650">PROTECT</text>
+  <text x="1427" y="738" class="title">Firebase Auth + App Check</text>
+  <text x="1427" y="761" class="copy">Google Sign-In gates sync • App Check attests</text>
+
+  <rect x="1427" y="845" width="87" height="24" rx="12" fill="#D7E8DB"/>
+  <text x="1440" y="862" class="chip" fill="#416650">SYNC</text>
+  <text x="1427" y="903" class="title">Cloud Firestore</text>
+  <text x="1427" y="928" class="copy">users/{uid}/daily_timeline/{date}</text>
+
+  <path d="M900 600 H930 V470 H1230 C1320 470 1320 355 1405 355" class="blue-flow"/>
+  <rect x="1125" y="443" width="154" height="31" rx="15" fill="#F7F4EE"/>
+  <text x="1142" y="464" class="flow-copy" fill="#365F92">wording request</text>
+  <path d="M1615 425 V485" class="blue-flow"/>
+  <path d="M1190 600 C1310 600 1315 880 1405 880" class="green-flow"/>
+  <rect x="1222" y="732" width="164" height="55" rx="14" fill="#F7F4EE" stroke="#C8D3CB"/>
+  <text x="1239" y="754" class="flow-copy" fill="#416650">explicit sync only</text>
+  <text x="1239" y="776" class="flow-copy" fill="#416650">after Google sign-in</text>
+
+  <rect x="90" y="920" width="1100" height="48" rx="16" fill="#352F3B"/>
+  <circle cx="121" cy="944" r="14" fill="#D8C4E8"/>
+  <path d="M115 944 L120 949 L128 939" fill="none" stroke="#352F3B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="148" y="950" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="650" fill="#FFFFFF">Stays local: raw audio, raw Health Connect values, ADK conversation events, and Room history unless the person taps Sync.</text>
+
+  <line x1="1405" y1="960" x2="1445" y2="960" stroke="#76539A" stroke-width="4" stroke-linecap="round"/>
+  <text x="1457" y="966" class="flow-copy">conversation</text>
+  <line x1="1575" y1="960" x2="1615" y2="960" stroke="#4F7560" stroke-width="4" stroke-linecap="round"/>
+  <text x="1627" y="966" class="flow-copy">authorized data</text>
+
+  <text x="70" y="1042" class="text" font-size="18" font-weight="700" fill="#5E5665">Wisteria can take useful action. You stay in control.</text>
+  <text x="1845" y="1042" class="text" font-size="16" font-weight="650" fill="#5E5665" text-anchor="end">Submission architecture • August 2026</text>
+</svg>
