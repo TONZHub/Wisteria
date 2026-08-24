@@ -50,6 +50,8 @@ import android.app.TimePickerDialog
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.CircularProgressIndicator
 import com.example.data.local.entity.CareActionEntity
 import com.example.data.local.entity.DailyCheckInEntity
@@ -71,6 +73,7 @@ import com.example.ui.viewmodel.CheckInUiState
 fun DailySummaryScreen(
     uiState: CheckInUiState,
     latestCheckIn: DailyCheckInEntity?,
+    savedCheckInCount: Int,
     careActions: List<CareActionEntity>,
     onToggleCareAction: (String, Boolean) -> Unit,
     onRunNightShift: () -> Unit,
@@ -83,6 +86,8 @@ fun DailySummaryScreen(
     onRequestNotificationAccess: () -> Unit,
     onRequestExactAlarmAccess: () -> Unit,
     onRequestFullScreenAlarmAccess: () -> Unit,
+    onShareHistory: () -> Unit,
+    onOpenSupport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val pulse = uiState.latestPulse
@@ -132,6 +137,54 @@ fun DailySummaryScreen(
                 rating = rating,
                 isOffDay = isOffDay
             )
+        }
+
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("share_and_support_card"),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Your history, when you want it",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "$savedCheckInCount saved check-in${if (savedCheckInCount == 1) "" else "s"}. Share a plain-language record without Health Connect data, conversation history, or an assigned body phase.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = onShareHistory,
+                        enabled = savedCheckInCount > 0,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("share_history_button")
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Share check-in history")
+                    }
+                    OutlinedButton(
+                        onClick = onOpenSupport,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("open_support_button")
+                    ) {
+                        Icon(Icons.Default.SupportAgent, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Need support now?")
+                    }
+                }
+            }
         }
 
         // Everyday textures saved from the person's own check-ins.
