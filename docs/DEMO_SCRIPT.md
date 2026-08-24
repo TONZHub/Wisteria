@@ -48,7 +48,7 @@ Keep this section as one uncut take. Let Wisteria finish the turn and briefly ho
 
 On-screen label: **Session-aware • duplicate-safe**
 
-### 1:05–1:38 — Show bounded action
+### 1:05–1:38 — Show action with clear permission
 
 **Picture:** Open Insights. Show the single saved check-in and optional ideas. Mark one idea complete. Briefly reveal the action receipt or architecture screen.
 
@@ -100,7 +100,7 @@ On-screen label: **Cloud Firestore • Firebase AI Logic • Gemini 3.5 Flash**
 
 **Narration:**
 
-> Wisteria is a Collaborative Partner built around bounded agency: it can listen, remember the turn, take a useful action, and learn a rhythm—without gaining silent authority over the person. Three seconds in; something useful back.
+> Wisteria is a Collaborative Partner that listens, remembers the turn, takes useful action, and learns a rhythm—while the person stays in control. Three seconds in; something useful back.
 
 End card, no longer than two seconds:
 

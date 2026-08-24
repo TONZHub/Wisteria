@@ -21,7 +21,7 @@ This file is the copy-and-check source for the All Things Agentic Hackathon subm
 
 Some days, the hardest part of self-reflection is finding a full sentence. Wisteria accepts a number, a tap, or an everyday phrase such as “I feel off,” turns it into one gentle daily record, and stays present for a follow-up without accidentally logging the conversation twice. Over time, its user-triggered Night Shift notices recurring heavy-to-off stretches and prepares a plain-language brief with visible confidence and evidence.
 
-Wisteria is intentionally agentic without being quietly authoritative. Google ADK Kotlin holds the in-memory companion session and Gemini 3.5 Flash shapes concise wording through Firebase AI Logic. A deterministic local router classifies each turn before a deny-by-default tool policy decides whether anything may be written. The model cannot change alerts, contact anyone, infer a condition, or silently sync data.
+Wisteria can act without taking control away from the person. Google ADK Kotlin keeps the conversation together, and Gemini 3.5 Flash helps Wisteria respond through Firebase AI Logic. Small local rules decide whether anything may be saved. The model cannot change alerts, contact anyone, infer a condition, or silently sync data.
 
 ## Inspiration
 
@@ -52,7 +52,7 @@ The answer became a companion that meets the person where they are, remembers on
 6. Night Shift can synthesize the local timeline into a pattern brief when the person requests it.
 7. Firestore receives the current entry only after Google Sign-In and a separate tap on **Sync Firestore**.
 
-This separation is the core design choice: the model may shape language, while deterministic local code remains the final authority over action.
+This separation is the core design choice: Gemini helps Wisteria choose its words, while small local rules decide what Wisteria may do.
 
 ## Google technology used
 

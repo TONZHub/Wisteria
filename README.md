@@ -76,7 +76,7 @@ Google ADK Kotlin is used for the optional Firebase-backed dialogue runtime and 
 
 [![Wisteria architecture: local inputs pass through a local router and tool policy, Google ADK reaches Gemini through Firebase AI Logic, and Firestore receives only explicit syncs.](docs/wisteria-architecture.png)](docs/wisteria-architecture.png)
 
-The editable vector source is [`docs/wisteria-architecture.svg`](docs/wisteria-architecture.svg). The model shapes companion wording; the deterministic local policy remains the final authority over writes.
+The editable vector source is [`docs/wisteria-architecture.svg`](docs/wisteria-architecture.svg). Gemini helps with the wording; small local rules decide when Wisteria may save or change anything.
 
 ## Run locally
 

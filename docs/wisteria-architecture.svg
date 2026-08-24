@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-labelledby="title description">
-  <title id="title">Wisteria bounded agent architecture</title>
+  <title id="title">Wisteria agent architecture</title>
   <desc id="description">Wisteria routes voice, text, and tap input through a deterministic on-device router and tool policy. Google ADK Kotlin maintains the companion session and reaches Gemini 3.5 Flash through Firebase AI Logic. Cloud Firestore receives data only after Google Sign-In and an explicit sync.</desc>
   <defs>
     <marker id="purpleArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
@@ -35,7 +35,7 @@
     <circle cx="30" cy="30" r="4" fill="#D9C5EA"/>
   </g>
   <text x="145" y="78" class="text" font-size="20" font-weight="800" letter-spacing="3">WISTERIA</text>
-  <text x="70" y="145" class="text" font-size="47" font-weight="780">Bounded agency, visible action</text>
+  <text x="70" y="145" class="text" font-size="47" font-weight="780">Listens, learns, and acts</text>
   <text x="950" y="132" class="text" font-size="20" font-weight="550" fill="#625A68">Local-first Android • Google ADK Kotlin • Gemini 3.5 Flash • Firestore</text>
 
   <rect x="50" y="190" width="1280" height="800" rx="30" fill="#FFFFFF" stroke="#B9A5CD" stroke-width="3"/>
@@ -173,6 +173,6 @@
   <line x1="1575" y1="960" x2="1615" y2="960" stroke="#4F7560" stroke-width="4" stroke-linecap="round"/>
   <text x="1627" y="966" class="flow-copy">authorized data</text>
 
-  <text x="70" y="1042" class="text" font-size="18" font-weight="700" fill="#5E5665">The model can shape language. The local policy alone authorizes action.</text>
+  <text x="70" y="1042" class="text" font-size="18" font-weight="700" fill="#5E5665">Wisteria can take useful action. You stay in control.</text>
   <text x="1845" y="1042" class="text" font-size="16" font-weight="650" fill="#5E5665" text-anchor="end">Submission architecture • August 2026</text>
 </svg>
