@@ -22,6 +22,7 @@ The demo-data button is explicit: every sample starts with `Demo:`, stays local,
 - One-tap or one-word check-ins with a deterministic local fallback.
 - Tap-to-speak check-ins with live partial captions and a spoken Wisteria response.
 - Full-screen in-app calls with push-to-talk, turn-based hands-free mode, mute, speaker, captions, and hang up controls.
+- A user-scheduled daily Check-In Alarm with exact timing, lock-screen display, snooze, dismiss, reboot recovery, and notification-only fallback when special access is declined.
 - A local session router that separates check-ins, follow-ups, idea requests, pattern questions, reminder requests, and conversation endings before any tool can run.
 - Duplicate-turn protection and visible receipts for local writes.
 - Local Room storage; Android backup is disabled for the app.
@@ -37,7 +38,7 @@ The demo-data button is explicit: every sample starts with `Demo:`, stays local,
 
 ## Honest boundaries
 
-Wisteria does **not** assign a body phase, label a condition, identify a cause, change alerts or tasks, place telephone calls, contact anyone, run overnight, or deploy a Cloud Run worker. “Call” means a full-screen conversation inside the Android app.
+Wisteria does **not** assign a body phase, label a condition, identify a cause, let the agent change alerts or tasks, place telephone calls, contact anyone, run overnight, or deploy a Cloud Run worker. “Call” means a full-screen conversation inside the Android app. A Check-In Alarm is created only when the person explicitly chooses a time in Insights, and it remains dismissible and independently disableable.
 
 Google ADK Kotlin is used for the optional Firebase-backed dialogue runtime and its in-memory multi-turn session. It does not own texture selection or write authority. Night Shift runs only when the person taps its button. A local tool policy owns storage and care ideas, so an ADK/model response cannot silently authorize a write. Hands-free voice mode uses bounded listen–think–speak turns rather than an always-open microphone. ADK Kotlin is currently a pre-GA dependency; the deterministic local companion remains available if it or Firebase is unavailable.
 
@@ -85,6 +86,8 @@ The app targets Android 8.0 (API 26) or newer. It builds and its core demo works
 
 Install `app/build/outputs/apk/debug/app-debug.apk`, then use **Load 10 clearly labeled demo days** for the full judge flow. The first microphone or call action requests `RECORD_AUDIO`; voice features also require an Android speech-recognition service and text-to-speech engine.
 
+To test the Check-In Alarm, open **Insights**, choose a time, and finish the three clearly labeled access steps. Android 12+ asks separately for precise alarm timing; Android 14+ may also ask for full-screen alarm display. If either access is declined, Wisteria preserves an inexact or heads-up notification fallback rather than trapping the person in setup.
+
 ### Connected Firebase demo
 
 1. Create a Firebase Android app with package name `com.zoeb.wisteria`.
@@ -107,7 +110,7 @@ Every pull request runs:
 ./gradlew testDebugUnitTest assembleDebug --stacktrace
 ```
 
-The tests cover everyday-language selection, intent routing, ADK runtime receipts and session rotation, multi-turn follow-ups, duplicate transcript blocking, read-only reminder and pattern questions, optional care ideas, private Health Connect context redaction, prompt de-duplication, local-only check-ins, explicit Firestore sync, demo-data labeling, heavy-to-off learning, confidence limits, on-device Night Shift execution, and voice-session UI state.
+The tests cover everyday-language selection, intent routing, ADK runtime receipts and session rotation, multi-turn follow-ups, duplicate transcript blocking, read-only reminder and pattern questions, persistent alarm settings and daily trigger calculation, the alarm's start/snooze/dismiss exits, optional care ideas, private Health Connect context redaction, prompt de-duplication, local-only check-ins, explicit Firestore sync, demo-data labeling, heavy-to-off learning, confidence limits, on-device Night Shift execution, and voice-session UI state.
 
 ## Privacy notes
 
@@ -115,6 +118,7 @@ The tests cover everyday-language selection, intent routing, ADK runtime receipt
 - Health Connect permissions are independently optional. Wisteria reads only granted signals and reduces them on-device to a generic response-tone hint; raw values, dates, and inferred labels are not sent to Firebase AI Logic or stored by Wisteria.
 - Wisteria does not retain raw microphone audio. The configured Android speech service produces a transcript, which passes through the same local intent router as typed text; conversational follow-ups are not saved as new check-ins.
 - Voice mode stops recognition while the agent reasons or speaks; hands-free mode opens a new finite listening turn only after speech playback ends.
+- Alarm notifications contain only the generic phrase “Your 3-second check-in is ready”; no saved check-in or Health Connect data appears on the lock screen.
 - ADK conversation events stay in memory only and become inaccessible when Wisteria starts or ends a conversation; they are not written to Room or Firestore.
 - Firestore sync requires an explicit button tap.
 - App data is excluded from Android backup.
