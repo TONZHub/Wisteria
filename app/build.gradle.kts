@@ -10,7 +10,8 @@ plugins {
 
 android {
   namespace = "com.example"
-  compileSdk = libs.versions.compileSdk.get().toInt()
+  // ADK Kotlin's Firebase Android adapter is built against the API 36.1 minor SDK.
+  compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
     applicationId = "com.zoeb.wisteria"
