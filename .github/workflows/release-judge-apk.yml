@@ -1,0 +1,102 @@
+name: Publish judge APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Stable release tag, for example devpost-judge-v1
+        required: true
+        default: devpost-judge-v1
+
+concurrency:
+  group: publish-judge-apk
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require main and a judge release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main" || {
+            echo "::error::Run this workflow from main."
+            exit 1
+          }
+          case "$RELEASE_TAG" in
+            devpost-judge-*) ;;
+            *)
+              echo "::error::The tag must start with devpost-judge-."
+              exit 1
+              ;;
+          esac
+
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Keep the public APK local-only
+        run: |
+          test ! -e app/google-services.json || {
+            echo "::error::The public judge APK must not package a connected Firebase configuration."
+            exit 1
+          }
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Test and build judge APK
+        run: ./gradlew testDebugUnitTest assembleDebug --stacktrace
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/debug/app-debug.apk release/wisteria-devpost-judge.apk
+          cd release
+          sha256sum wisteria-devpost-judge.apk > wisteria-devpost-judge.apk.sha256
+
+      - name: Write judge notes
+        run: |
+          cat > release-notes.md <<'NOTES'
+          ## Wisteria judge build
+
+          Install `wisteria-devpost-judge.apk` on Android 8.0 or newer. Android may ask permission to install an app from the browser or file manager.
+
+          This public APK deliberately uses Wisteria's deterministic local companion so it remains testable without publishing Firebase credentials or an App Check bypass. Voice input requires an Android speech-recognition service, text-to-speech engine, and microphone permission.
+
+          Fast path:
+
+          1. Open **Check-In** and say or type **I feel off**.
+          2. Tap **Call** and follow with **Yes, give me one idea**.
+          3. Open **Insights** → **See How It Works**.
+          4. Load the ten clearly labeled demo days and run **Night Shift**.
+
+          The submission video separately shows the connected Google ADK Kotlin, Gemini 3.5 Flash, and Cloud Firestore execution. The `.sha256` file can be used to verify the APK download.
+          NOTES
+
+      - name: Publish immutable GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "::error::Release $RELEASE_TAG already exists. Use a new tag so an existing judge build is never overwritten."
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" \
+            release/wisteria-devpost-judge.apk \
+            release/wisteria-devpost-judge.apk.sha256 \
+            --target "$GITHUB_SHA" \
+            --title "Wisteria Devpost Judge Build — $RELEASE_TAG" \
+            --notes-file release-notes.md \
+            --latest

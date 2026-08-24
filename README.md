@@ -16,7 +16,7 @@ Wisteria was created during the All Things Agentic Hackathon submission period; 
 | Google agent framework | Google ADK Kotlin 0.8.0 using `LlmAgent`, `InMemoryRunner`, and in-memory sessions |
 | Google Cloud infrastructure | Cloud Firestore with Google Sign-In, plus Firebase AI Logic and App Check |
 
-Submission materials live in [`docs/DEVPOST_SUBMISSION.md`](docs/DEVPOST_SUBMISSION.md), and the timed recording plan lives in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+Submission materials live in [`docs/DEVPOST_SUBMISSION.md`](docs/DEVPOST_SUBMISSION.md), and the timed recording plan lives in [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md). The phone portion can be rehearsed and captured by Android Builder using the checkpointed [`docs/ANDROID_BUILDER_DEMO_RUNBOOK.md`](docs/ANDROID_BUILDER_DEMO_RUNBOOK.md).
 
 ## 60-second judge demo
 
@@ -134,7 +134,7 @@ The public Git history predates this cleanup. Maintainers should review and rewr
 
 ## Before final submission
 
-- Publish a free judge APK at a stable public GitHub Release URL; a Play Store listing is not required for this path.
+- Run **Publish judge APK** from `main` with a new `devpost-judge-*` tag. It tests the app, builds a deliberately local-only APK, publishes a permanent GitHub Release URL, and refuses to overwrite an existing judge release. A Play Store listing is not required for this path.
 - Record a public demo of no more than four minutes using the judge flow above. Preserve the core agent action as one continuous live take, then use tight edits around navigation and Google Cloud proof.
 - Add two real app screenshots from the connected demo build.
 - Configure `GOOGLE_SERVICES_JSON_B64` and register the App Check debug token for the downloadable connected APK.

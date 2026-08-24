@@ -12,6 +12,7 @@ Target length: **3:20–3:40**. Begin already signed in on the Check-In screen. 
 - Open the relevant Firestore document and Firebase AI Logic or Agent Platform evidence in a desktop browser before recording the Cloud clip.
 - Hide billing details, tokens, debug secrets, OAuth client IDs, and unrelated browser tabs.
 - Prepare short on-screen labels; do not type or wait through loading on camera.
+- If Android Builder is operating the phone, use [`ANDROID_BUILDER_DEMO_RUNBOOK.md`](ANDROID_BUILDER_DEMO_RUNBOOK.md). The entrant still supplies the two real voice turns; the operator must stop if any live receipt is missing.
 
 ## Shot list and narration
 
