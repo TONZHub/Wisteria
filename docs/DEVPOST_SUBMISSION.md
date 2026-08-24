@@ -19,7 +19,7 @@ This file is the copy-and-check source for the All Things Agentic Hackathon subm
 
 ## Short description
 
-Some days, the hardest part of self-reflection is finding a full sentence. Wisteria accepts a number, a tap, or an everyday phrase such as “I feel off,” turns it into one gentle daily record, and stays present for a follow-up without accidentally logging the conversation twice. Over time, its user-triggered Night Shift notices recurring heavy-to-off stretches and prepares a plain-language brief with visible confidence and evidence.
+Wisteria is designed first for people who already live with PMDD and are entering perimenopause, when cycles and familiar warning signs may become less predictable. Some days, the hardest part of self-reflection is finding a full sentence. Wisteria accepts a number, a tap, or an everyday phrase such as “I feel off,” turns it into one gentle daily record, and stays present for a follow-up without accidentally logging the conversation twice. Over time, its user-triggered Night Shift notices recurring heavy-to-off stretches and prepares a plain-language brief with visible confidence and evidence.
 
 Wisteria can act without taking control away from the person. Google ADK Kotlin keeps the conversation together, and Gemini 3.5 Flash helps Wisteria respond through Firebase AI Logic. Small local rules decide whether anything may be saved. The model cannot change alerts, contact anyone, infer a condition, or silently sync data.
 
@@ -27,7 +27,11 @@ Wisteria can act without taking control away from the person. Google ADK Kotlin 
 
 Most trackers ask for the most effort on the days when the person has the least to spare. Wisteria began with a smaller question: what if being understood could start with three seconds and one ordinary word?
 
-The answer became a companion that meets the person where they are, remembers only what it has permission to keep, and turns a series of tiny signals into something useful without pretending to know why the person feels that way.
+The project's first concrete user is someone living with PMDD while entering perimenopause. As her cycle became less predictable, the familiar calendar stopped being enough, but the need to remember difficult days did not disappear. That exposed a gap in conventional phase-based tracking: it often assumes both a predictable cycle and enough energy to complete a detailed form.
+
+The answer became a companion that meets the person where they are, remembers only what it has permission to keep, and turns a series of tiny signals into something useful without pretending to know why the person feels that way. The International Association for Premenstrual Disorders notes that perimenopause can bring irregular periods and more unpredictable changes that may intensify existing PMDD or PME symptoms. Wisteria does not diagnose either condition; this context defines the audience and the interaction problem it is built to address.
+
+Source: [IAPMD — Reproductive Lifespan](https://www.iapmd.org/reproductive-lifespan)
 
 ## What it does
 
@@ -93,6 +97,7 @@ Wisteria uses no scraped dataset and makes no claim to identify a cause or condi
 ## What we learned
 
 - A short ordinary phrase can be a more usable signal than a detailed form when someone has very little energy.
+- A person entering perimenopause may lose the predictable calendar they previously used to anticipate difficult days. Tracking should remain useful without requiring a phase label.
 - Conversation state matters: “yes, give me one idea” should continue the current check-in, not create a duplicate record.
 - Useful personalization does not require revealing raw private context. Health Connect can influence how gently the agent speaks without exposing the underlying value or supposed reason.
 - Agentic systems are more trustworthy when generation and authority are separate. ADK and Gemini handle the conversation; a small, testable local policy owns every write.
