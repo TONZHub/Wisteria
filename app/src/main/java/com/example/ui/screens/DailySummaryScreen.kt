@@ -434,7 +434,7 @@ fun DailySummaryScreen(
                             )
                         } else {
                             Text(
-                                text = "Not signed in · anonymous sync optional",
+                                text = "Not signed in · Google sign-in required for sync",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 10.sp,
