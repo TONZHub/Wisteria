@@ -31,6 +31,7 @@ The demo-data button is explicit: every sample starts with `Demo:`, stays local,
 - Optional companion wording through Firebase AI Logic and `gemini-3.5-flash`.
 - Optional, button-triggered Firestore sync under the signed-in Google account's Firebase user ID.
 - Firebase App Check: debug provider for debug builds and Play Integrity for release builds.
+- Granular Health Connect access for sleep, steps, and optional period timing; raw records and inferred labels never enter the model prompt.
 - A test-gated GitHub Actions build that publishes the debug APK and unit-test report.
 
 ## Honest boundaries
@@ -53,6 +54,7 @@ Night Shift runs only when the person taps its button. Firebase AI Logic can sha
 | Voice input | Android `SpeechRecognizer`; on-device recognition is preferred when available |
 | Voice output | Android device text-to-speech with utterance lifecycle callbacks |
 | Call mode | Full-screen, turn-based in-app voice session over the existing agent loop |
+| Private health context | Health Connect records reduced on-device to a tone-only hint; partial permission grants are supported |
 | Optional sync | Cloud Firestore at `users/{uid}/daily_timeline/{date}` |
 | Identity | Firebase Authentication with Google Sign-In; the resolved UID is used after sign-in |
 | Request protection | Firebase App Check |
@@ -91,11 +93,12 @@ Every pull request runs:
 ./gradlew testDebugUnitTest assembleDebug --stacktrace
 ```
 
-The tests cover everyday-language selection, intent routing, multi-turn follow-ups, duplicate transcript blocking, read-only reminder and pattern questions, optional care ideas, prompt de-duplication, local-only check-ins, explicit Firestore sync, demo-data labeling, heavy-to-off learning, confidence limits, on-device Night Shift execution, and voice-session UI state.
+The tests cover everyday-language selection, intent routing, multi-turn follow-ups, duplicate transcript blocking, read-only reminder and pattern questions, optional care ideas, private Health Connect context redaction, prompt de-duplication, local-only check-ins, explicit Firestore sync, demo-data labeling, heavy-to-off learning, confidence limits, on-device Night Shift execution, and voice-session UI state.
 
 ## Privacy notes
 
 - Check-ins start on-device and are not cloud-synced during a normal check-in.
+- Health Connect permissions are independently optional. Wisteria reads only granted signals and reduces them on-device to a generic response-tone hint; raw values, dates, and inferred labels are not sent to Firebase AI Logic or stored by Wisteria.
 - Wisteria does not retain raw microphone audio. The configured Android speech service produces a transcript, which passes through the same local intent router as typed text; conversational follow-ups are not saved as new check-ins.
 - Voice mode stops recognition while the agent reasons or speaks; hands-free mode opens a new finite listening turn only after speech playback ends.
 - Firestore sync requires an explicit button tap.

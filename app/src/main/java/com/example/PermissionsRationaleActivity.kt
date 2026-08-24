@@ -20,7 +20,17 @@ class PermissionsRationaleActivity : ComponentActivity() {
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Wisteria requests access to your sleep and activity data to help provide context for your daily check-ins. This data stays on your device unless you choose to sync it to your private Firestore timeline."
+                        text = "Wisteria can optionally read sleep, steps, and period timing as private background context for your check-ins. You can grant any combination and change access later in Health Connect."
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Health Connect records stay on your device. Wisteria reduces them to a simple tone hint before asking its response model for wording—never the raw values, dates, or a phase name. It will not tell you why you feel a certain way."
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Only the check-in you choose to save can be copied to your private Firestore timeline, and only when you explicitly tap Sync.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = { finish() }) {

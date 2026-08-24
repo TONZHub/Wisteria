@@ -57,6 +57,7 @@ data class CheckInUiState(
     val startupBootLog: List<String> = emptyList(),
     val isHealthConnected: Boolean = false,
     val isHealthAvailable: Boolean = false,
+    val healthConnectionSummary: String = "Not connected · integration optional",
     val themeMode: ThemeMode = ThemeMode.AUTO,
     val reminderHour: Int? = null,
     val reminderMinute: Int? = null,
@@ -144,9 +145,11 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
 
     private fun checkHealthState() {
         viewModelScope.launch {
+            val access = healthManager.getAccessStatus()
             _uiState.value = _uiState.value.copy(
                 isHealthAvailable = healthManager.isAvailable.value,
-                isHealthConnected = healthManager.hasAllPermissions()
+                isHealthConnected = access.hasAnyAccess,
+                healthConnectionSummary = access.summary
             )
         }
     }
@@ -154,8 +157,8 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     fun getHealthPermissions() = healthManager.permissions
     fun getHealthInstallIntent() = healthManager.getHealthConnectInstallIntent()
 
-    fun onHealthPermissionsResult(granted: Boolean) {
-        _uiState.value = _uiState.value.copy(isHealthConnected = granted)
+    fun onHealthPermissionsResult() {
+        checkHealthState()
     }
 
     private fun refreshLoginState() {
@@ -289,7 +292,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
 
         viewModelScope.launch {
             try {
-                val healthContext = healthManager.fetchLastCycleContext()
+                val healthContext = healthManager.fetchPrivateResponseContext()
                 val agentResponse = repository.checkInAgent.processUserTurn(
                     userPrompt = userText,
                     conversationHistory = updatedMessages,
