@@ -1,0 +1,71 @@
+name: Build Google Play bundle
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: build-google-play-bundle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FIREBASE_CONFIG_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+      UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+      STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Require production configuration
+        run: |
+          required=(
+            FIREBASE_CONFIG_B64
+            UPLOAD_KEYSTORE_B64
+            STORE_PASSWORD
+            KEY_PASSWORD
+            KEY_ALIAS
+          )
+          for variable in "${required[@]}"; do
+            test -n "${!variable}" || {
+              echo "::error::Required release secret $variable is not configured."
+              exit 1
+            }
+          done
+
+      - name: Configure Firebase and upload signing
+        run: |
+          printf '%s' "$FIREBASE_CONFIG_B64" | base64 --decode > app/google-services.json
+          printf '%s' "$UPLOAD_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/wisteria-upload-key.jks"
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/wisteria-upload-key.jks" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Test and build signed app bundle
+        run: ./gradlew testDebugUnitTest bundleRelease --stacktrace
+
+      - name: Verify bundle signature
+        run: jarsigner -verify -strict -certs app/build/outputs/bundle/release/app-release.aab
+
+      - name: Upload Google Play bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: wisteria-google-play-v1
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
