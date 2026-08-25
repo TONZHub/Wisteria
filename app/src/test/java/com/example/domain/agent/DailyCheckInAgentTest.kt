@@ -152,6 +152,43 @@ class DailyCheckInAgentTest {
     }
 
     @Test
+    fun `memory recall works locally without authorizing a write`() = runTest {
+        val model = FakeCompanionModelService()
+        val memory = AgentMemoryEntity(
+            memoryKey = "conversation_support_music",
+            memoryValue = "music usually calms me down",
+            category = "CONVERSATION_SUPPORT"
+        )
+
+        val response = buildAgent(model = model).processUserTurn(
+            userPrompt = "What do you remember about me?",
+            conversationHistory = emptyList(),
+            rememberedContext = listOf(memory),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(AgentTurnIntent.GENERAL, response.turnIntent)
+        assertTrue(response.text.contains(memory.memoryValue))
+        assertTrue(response.toolInvocations.isEmpty())
+        assertTrue(model.prompts.isEmpty())
+    }
+
+    @Test
+    fun `memory recall says when no conversation memories exist`() = runTest {
+        val response = buildAgent().processUserTurn(
+            userPrompt = "Tell me what you remember",
+            conversationHistory = emptyList(),
+            rememberedContext = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertTrue(response.text.contains("don't have any conversation memories"))
+        assertTrue(response.toolInvocations.isEmpty())
+    }
+
+    @Test
     fun `model wording with a body phase label falls back to everyday language`() = runTest {
         val model = FakeCompanionModelService(response = "You are in a follicular phase.")
 
