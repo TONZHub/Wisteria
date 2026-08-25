@@ -30,6 +30,11 @@ REJECTED_TERMS = {
 }
 EMAIL = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 PHONE = re.compile(r"(?<!\d)(?:\+?1[-. ]?)?\(?\d{3}\)?[-. ]?\d{3}[-. ]?\d{4}(?!\d)")
+QUESTION_STARTS = (
+    "what ", "why ", "how ", "when ", "where ", "who ", "which ",
+    "can ", "could ", "would ", "should ", "do ", "does ", "did ",
+    "is ", "are ", "am ", "will ", "may ",
+)
 
 
 class MemoryInput(BaseModel):
@@ -41,6 +46,8 @@ class MemoryInput(BaseModel):
     def safe_fact(cls, value: str) -> str:
         value = " ".join(value.split())
         lower = value.lower()
+        if value.endswith("?") or lower.startswith(QUESTION_STARTS):
+            raise ValueError("Questions cannot be saved as memories")
         if any(term in lower for term in REJECTED_TERMS):
             raise ValueError("This note cannot be saved")
         if EMAIL.search(value) or PHONE.search(value):
