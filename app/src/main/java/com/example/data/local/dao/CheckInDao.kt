@@ -55,4 +55,10 @@ interface CheckInDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMemory(memory: AgentMemoryEntity)
+
+    @Query("DELETE FROM agent_memories WHERE memoryKey = :key")
+    suspend fun deleteMemory(key: String)
+
+    @Query("DELETE FROM agent_memories WHERE category LIKE 'CONVERSATION_%'")
+    suspend fun deleteConversationMemories()
 }
