@@ -2,6 +2,7 @@ package com.example
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -39,6 +41,7 @@ import com.example.ui.screens.ArchitectureScreen
 import com.example.ui.screens.DailyCheckInAgentScreen
 import com.example.ui.screens.DailySummaryScreen
 import com.example.ui.screens.RhythmMemoryScreen
+import com.example.ui.screens.SupportScreen
 import com.example.ui.screens.VoiceCallScreen
 import com.example.ui.components.FullScreenCheckInDialog
 import com.example.ui.theme.ForestGreenMint
@@ -46,6 +49,7 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.OffCoral
 import com.example.ui.viewmodel.DailyCheckInViewModel
 import com.example.ui.viewmodel.ThemeMode
+import com.example.domain.export.CheckInExportFormatter
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
@@ -134,6 +138,7 @@ fun WisteriaMainApp(
 
     MyApplicationTheme(darkTheme = isDark) {
         val latestCheckIn by viewModel.latestSavedCheckIn.collectAsState()
+        val allCheckIns by viewModel.allCheckIns.collectAsState()
         val careActions by viewModel.careActions.collectAsState()
         val memories by viewModel.agentMemories.collectAsState()
 
@@ -148,6 +153,7 @@ fun WisteriaMainApp(
         var currentTab by remember { mutableStateOf(WisteriaTab.DAILY_PULSE) }
         var showInfoDialog by remember { mutableStateOf(false) }
         var showArchitecture by remember { mutableStateOf(false) }
+        var showSupport by remember { mutableStateOf(false) }
 
         val healthLauncher = rememberLauncherForActivityResult(
             PermissionController.createRequestPermissionResultContract()
@@ -254,6 +260,11 @@ fun WisteriaMainApp(
             }
         }
 
+        val openIntentOrExplain: (Intent, String) -> Unit = { intent, fallback ->
+            runCatching { context.startActivity(intent) }
+                .onFailure { viewModel.setStatusMessage(fallback) }
+        }
+
         if (showArchitecture) {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -281,6 +292,28 @@ fun WisteriaMainApp(
                     modifier = Modifier.padding(innerPadding)
                 )
             }
+        } else if (showSupport) {
+            SupportScreen(
+                onBack = { showSupport = false },
+                onDial988 = {
+                    openIntentOrExplain(
+                        Intent(Intent.ACTION_DIAL, Uri.parse("tel:988")),
+                        "No phone app is available on this device."
+                    )
+                },
+                onText988 = {
+                    openIntentOrExplain(
+                        Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:988")),
+                        "No messaging app is available on this device."
+                    )
+                },
+                onFindLocalHelp = {
+                    openIntentOrExplain(
+                        Intent(Intent.ACTION_VIEW, Uri.parse("https://findahelpline.com")),
+                        "A browser is not available on this device."
+                    )
+                }
+            )
         } else {
             if (showInfoDialog) {
                 AlertDialog(
@@ -435,6 +468,15 @@ fun WisteriaMainApp(
                                 }
                             }
 
+                            IconButton(onClick = { showSupport = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.SupportAgent,
+                                    contentDescription = "Need support now?",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
                             IconButton(onClick = { showInfoDialog = true }) {
                                 Icon(
                                     imageVector = Icons.Default.Info,
@@ -541,6 +583,7 @@ fun WisteriaMainApp(
                         WisteriaTab.INSIGHTS -> DailySummaryScreen(
                             uiState = uiState,
                             latestCheckIn = latestCheckIn,
+                            savedCheckInCount = allCheckIns.size,
                             careActions = careActions,
                             onToggleCareAction = { id, done -> viewModel.toggleCareAction(id, done) },
                             onRunNightShift = { viewModel.runNightShift() },
@@ -560,7 +603,26 @@ fun WisteriaMainApp(
                                 viewModel.getFullScreenAlarmSettingsIntent()?.let { intent ->
                                     context.startActivity(intent)
                                 }
-                            }
+                            },
+                            onShareHistory = {
+                                if (allCheckIns.isEmpty()) {
+                                    viewModel.setStatusMessage("Save a check-in before sharing your history.")
+                                } else {
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "Wisteria check-in history")
+                                        putExtra(
+                                            Intent.EXTRA_TEXT,
+                                            CheckInExportFormatter.clinicianSummary(allCheckIns)
+                                        )
+                                    }
+                                    openIntentOrExplain(
+                                        Intent.createChooser(shareIntent, "Share check-in history"),
+                                        "No sharing app is available on this device."
+                                    )
+                                }
+                            },
+                            onOpenSupport = { showSupport = true }
                         )
                         WisteriaTab.RHYTHM_CARE -> RhythmMemoryScreen(
                             uiState = uiState,

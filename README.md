@@ -12,6 +12,12 @@ Remote recall is treated as untrusted user data and passes through the same agen
 
 Wisteria is a local-first Android prototype that turns a number, emoji, or everyday word into a gentle daily record. It uses four intentionally plain textures—**bright, steady, heavy, and off**—and never assigns a body phase or explains why someone feels a certain way.
 
+## Who Wisteria is for
+
+Wisteria's primary audience is **people who already live with PMDD and are entering perimenopause**—a transition when cycles and familiar warning signs may become less predictable, while difficult days still need to be remembered. Detailed phase-based trackers can ask for the most work precisely when fog, exhaustion, or distress leaves the least capacity. Wisteria preserves a useful daily signal without requiring the person to identify a phase or explain a cause.
+
+This focus is grounded in the lived experience that prompted the project and in guidance from the [International Association for Premenstrual Disorders](https://www.iapmd.org/reproductive-lifespan), which notes that perimenopause can bring irregular periods and more unpredictable changes that may intensify existing PMDD or PME symptoms. Wisteria is not positioned as a diagnostic tool or as a post-menopause PMDD tracker. Its job is smaller: catch the days conventional tracking may lose, then let the person share their own history when they choose.
+
 ## Hackathon snapshot
 
 Wisteria was created during the All Things Agentic Hackathon submission period; development began on **August 22, 2026**, with no Wisteria application code predating August 3. It enters the **Collaborative Partner** category.
@@ -48,6 +54,8 @@ The demo-data button is explicit: every sample starts with `Demo:`, stays local,
 - Everyday textures kept separate: bright, steady, heavy, off, or unlabeled.
 - User-triggered Night Shift learning from real heavy-to-off stretches in local history—no fixed schedule.
 - Sample-based confidence that grows only with saved history and observed transitions.
+- A plain-language history share that includes saved dates, the person's own words, everyday textures, and ratings without exporting Health Connect data or assigning a body phase or cause.
+- An always-available support screen with deliberate, user-started call, text, and helpline-directory actions; Wisteria never contacts anyone automatically.
 - Stateful, in-memory companion sessions through [Google ADK Kotlin 0.8.0](https://github.com/google/adk-kotlin).
 - Optional ADK companion wording through Firebase AI Logic and `gemini-3.5-flash`, with a visible per-turn runtime receipt.
 - Optional, button-triggered Firestore sync under the signed-in Google account's Firebase user ID.
@@ -135,6 +143,8 @@ The tests cover everyday-language selection, intent routing, ADK runtime receipt
 - Alarm notifications contain only the generic phrase “Your 3-second check-in is ready”; no saved check-in or Health Connect data appears on the lock screen.
 - ADK conversation events and raw chat stay in memory only and become inaccessible when Wisteria starts or ends a conversation. If conversational memory is enabled, a narrowly filtered local note may persist separately in Room and remains visible and deletable in Rhythm & Care.
 - Firestore sync requires an explicit button tap.
+- Shared history is created only when the person taps its button. It contains saved check-ins, not Health Connect records, raw audio, or companion conversation history.
+- Support actions open the device phone, messaging, or browser app and wait for the person to continue; Wisteria never places a call, sends a text, or alerts someone by itself.
 - App data is excluded from Android backup.
 - The repository contains no Firebase configuration, developer API key, or personal planning artifact in its current tree.
 
