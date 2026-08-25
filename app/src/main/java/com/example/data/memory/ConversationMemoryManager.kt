@@ -43,6 +43,11 @@ object ConversationMemoryExtractor {
         "yes", "no", "yeah", "yep", "nope", "okay", "ok", "sure", "thanks",
         "thank you", "maybe", "idk", "i don't know", "done", "stop"
     )
+    private val questionStarts = listOf(
+        "what ", "why ", "how ", "when ", "where ", "who ", "which ",
+        "can ", "could ", "would ", "should ", "do ", "does ", "did ",
+        "is ", "are ", "am ", "will ", "may "
+    )
 
     fun extract(userText: String, intent: AgentTurnIntent?): AgentMemoryEntity? {
         if (intent !in eligibleIntents) return null
@@ -50,6 +55,7 @@ object ConversationMemoryExtractor {
         val normalized = userText.trim().replace(Regex("\\s+"), " ")
         val lower = normalized.lowercase()
         if (normalized.length < 12 || lower in lowInformationReplies) return null
+        if (normalized.endsWith("?") || questionStarts.any(lower::startsWith)) return null
         if (secretTerms.any(lower::contains) || instructionTerms.any(lower::contains)) return null
         if (EMAIL.containsMatchIn(normalized) || PHONE.containsMatchIn(normalized)) return null
 

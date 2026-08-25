@@ -32,6 +32,22 @@ class ConversationMemoryExtractorTest {
     }
 
     @Test
+    fun `does not mistake a question about support for a memory`() {
+        assertNull(
+            ConversationMemoryExtractor.extract(
+                "What usually calms me down?",
+                AgentTurnIntent.GENERAL
+            )
+        )
+        assertNull(
+            ConversationMemoryExtractor.extract(
+                "Could music help me settle down",
+                AgentTurnIntent.FOLLOW_UP
+            )
+        )
+    }
+
+    @Test
     fun `does not duplicate deliberate check ins as conversation memory`() {
         assertNull(
             ConversationMemoryExtractor.extract(
