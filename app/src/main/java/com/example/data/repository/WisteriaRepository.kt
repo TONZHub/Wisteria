@@ -98,6 +98,10 @@ class WisteriaRepository(
         firestoreService.signInWithGoogle(idToken)
     }
 
+    fun signInWithDemo(email: String = "demo.user@wisteria.app") {
+        firestoreService.signInWithDemo(email)
+    }
+
     fun signOut() {
         firestoreService.signOut()
     }

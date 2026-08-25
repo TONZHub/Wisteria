@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Spa
@@ -156,6 +158,7 @@ fun WisteriaMainApp(
         var showInfoDialog by remember { mutableStateOf(false) }
         var showArchitecture by remember { mutableStateOf(false) }
         var showSupport by remember { mutableStateOf(false) }
+        var showNoGoogleAccountDialog by remember { mutableStateOf(false) }
 
         val healthLauncher = rememberLauncherForActivityResult(
             PermissionController.createRequestPermissionResultContract()
@@ -231,44 +234,21 @@ fun WisteriaMainApp(
                 val credentialManager = CredentialManager.create(context)
                 val webClientId = "635342872362-5i3f5hjvtogukt0l3f27cv981r1f3hvo.apps.googleusercontent.com"
                 
-                val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = webClientId)
-                    .build()
-
-                val buttonRequest = GetCredentialRequest.Builder()
-                    .addCredentialOption(signInOption)
-                    .build()
-
                 try {
-                    val result = try {
-                        credentialManager.getCredential(
-                            request = buttonRequest,
-                            context = context,
-                        )
-                    } catch (firstError: GetCredentialException) {
-                        Log.w(
-                            "Wisteria",
-                            "Primary Google account flow failed; retrying with account chooser",
-                            firstError
-                        )
-                        runCatching {
-                            credentialManager.clearCredentialState(ClearCredentialStateRequest())
-                        }.onFailure { clearError ->
-                            Log.w("Wisteria", "Could not clear stale credential state", clearError)
-                        }
+                    val googleIdOption = GetGoogleIdOption.Builder()
+                        .setServerClientId(webClientId)
+                        .setFilterByAuthorizedAccounts(false)
+                        .setAutoSelectEnabled(false)
+                        .build()
 
-                        val accountChooserOption = GetGoogleIdOption.Builder()
-                            .setServerClientId(webClientId)
-                            .setFilterByAuthorizedAccounts(false)
-                            .setAutoSelectEnabled(false)
-                            .build()
-                        val accountChooserRequest = GetCredentialRequest.Builder()
-                            .addCredentialOption(accountChooserOption)
-                            .build()
-                        credentialManager.getCredential(
-                            request = accountChooserRequest,
-                            context = context,
-                        )
-                    }
+                    val request = GetCredentialRequest.Builder()
+                        .addCredentialOption(googleIdOption)
+                        .build()
+
+                    val result = credentialManager.getCredential(
+                        request = request,
+                        context = context,
+                    )
                     val credential = result.credential
                     
                     if (credential is androidx.credentials.CustomCredential && 
@@ -278,12 +258,23 @@ fun WisteriaMainApp(
                     } else {
                         viewModel.setStatusMessage("Unexpected credential type: ${credential.type}")
                     }
+                } catch (e: androidx.credentials.exceptions.NoCredentialException) {
+                    Log.i("Wisteria", "No Google account found on device: ${e.message}")
+                    showNoGoogleAccountDialog = true
+                } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
+                    Log.i("Wisteria", "Google Sign-In canceled by user")
+                    viewModel.setStatusMessage("Sign-in canceled")
                 } catch (e: GetCredentialException) {
-                    Log.e("Wisteria", "Google Sign-In failed", e)
-                    viewModel.setStatusMessage("Sign-in error: ${e.message ?: "check Web Client ID and SHA-1"}")
+                    val msg = e.message ?: ""
+                    Log.w("Wisteria", "Google Sign-In notice: $msg")
+                    if (msg.contains("16") || msg.contains("No credential", ignoreCase = true) || msg.contains("28436")) {
+                        showNoGoogleAccountDialog = true
+                    } else {
+                        viewModel.setStatusMessage("Sign-in error: $msg")
+                    }
                 } catch (e: Exception) {
-                    Log.e("Wisteria", "Unexpected Sign-In error", e)
-                    viewModel.setStatusMessage("Error: ${e.message ?: "unknown"}")
+                    Log.w("Wisteria", "Sign-in notice: ${e.message}")
+                    showNoGoogleAccountDialog = true
                 }
             }
         }
@@ -423,6 +414,77 @@ fun WisteriaMainApp(
                     confirmButton = {
                         TextButton(onClick = { showInfoDialog = false }) {
                             Text("Close", color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                )
+            }
+
+            if (showNoGoogleAccountDialog) {
+                AlertDialog(
+                    onDismissRequest = { showNoGoogleAccountDialog = false },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Cloud,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    title = {
+                        Text(
+                            "Google Sign-In",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "No Google account is configured on this Android device or emulator.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "• You can add a real Google account in Android Settings.\n• Or use Demo Sign-In to test timeline persistence, memory, and sync features immediately.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 18.sp
+                                )
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showNoGoogleAccountDialog = false
+                                viewModel.signInWithDemo()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.testTag("use_demo_sign_in_button")
+                        ) {
+                            Text("Use Demo Sign-In")
+                        }
+                    },
+                    dismissButton = {
+                        Row {
+                            TextButton(
+                                onClick = {
+                                    showNoGoogleAccountDialog = false
+                                    runCatching {
+                                        val intent = Intent(Settings.ACTION_ADD_ACCOUNT).apply {
+                                            putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
+                                        }
+                                        context.startActivity(intent)
+                                    }.onFailure {
+                                        runCatching {
+                                            context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                        }
+                                    }
+                                }
+                            ) {
+                                Text("Device Settings")
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            TextButton(onClick = { showNoGoogleAccountDialog = false }) {
+                                Text("Cancel")
+                            }
                         }
                     }
                 )

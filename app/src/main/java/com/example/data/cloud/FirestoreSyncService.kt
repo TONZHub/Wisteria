@@ -21,6 +21,7 @@ interface FirestoreSyncService {
     suspend fun syncDailyCheckIn(pulse: DailyPulseData): FirestoreSyncRecord
     suspend fun fetchTextureSummary(): List<Map<String, Any>>
     suspend fun signInWithGoogle(idToken: String)
+    fun signInWithDemo(email: String = "demo.user@wisteria.app")
     fun signOut()
     fun isUserLoggedIn(): Boolean
     fun getUserEmail(): String?
@@ -41,25 +42,37 @@ class FirestoreSyncServiceImpl(
     private val firestore: FirebaseFirestore by lazy { firestoreProvider() }
     private val auth: FirebaseAuth by lazy { authProvider() }
 
+    private var demoUserId: String? = null
+    private var demoUserEmail: String? = null
+
     private fun safeAuth(): FirebaseAuth? = runCatching { auth }.getOrNull()
 
     override suspend fun signInWithGoogle(idToken: String) {
         val auth = safeAuth() ?: error("Firebase not initialized")
         val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(idToken, null)
         auth.signInWithCredential(credential).await()
+        demoUserId = null
+        demoUserEmail = null
+    }
+
+    override fun signInWithDemo(email: String) {
+        demoUserId = "demo_user_${System.currentTimeMillis() % 10000}"
+        demoUserEmail = email
     }
 
     override fun signOut() {
+        demoUserId = null
+        demoUserEmail = null
         safeAuth()?.signOut()
     }
 
     private fun signedInGoogleUserId(): String? =
-        safeAuth()?.currentUser?.takeUnless { it.isAnonymous }?.uid
+        safeAuth()?.currentUser?.takeUnless { it.isAnonymous }?.uid ?: demoUserId
 
     override fun isUserLoggedIn(): Boolean = signedInGoogleUserId() != null
 
     override fun getUserEmail(): String? {
-        return safeAuth()?.currentUser?.email
+        return safeAuth()?.currentUser?.email ?: demoUserEmail
     }
 
     override suspend fun syncDailyCheckIn(pulse: DailyPulseData): FirestoreSyncRecord {

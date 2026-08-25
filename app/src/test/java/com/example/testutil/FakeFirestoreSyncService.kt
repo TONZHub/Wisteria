@@ -18,6 +18,10 @@ class FakeFirestoreSyncService(
         signedIn = true
     }
 
+    override fun signInWithDemo(email: String) {
+        signedIn = true
+    }
+
     override fun signOut() {
         signedIn = false
     }

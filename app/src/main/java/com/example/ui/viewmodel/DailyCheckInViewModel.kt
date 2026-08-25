@@ -197,6 +197,12 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    fun signInWithDemo(email: String = "demo.user@wisteria.app") {
+        repository.signInWithDemo(email)
+        refreshLoginState()
+        _uiState.value = _uiState.value.copy(agentStatusMessage = "Signed in as ${_uiState.value.userEmail} (Demo)")
+    }
+
     fun signOut() {
         repository.signOut()
         refreshLoginState()

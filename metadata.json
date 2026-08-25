@@ -2,5 +2,5 @@
   "name": "Wisteria",
   "description": "A low-bandwidth Android daily-rhythm agent with local pattern learning, Google ADK Kotlin sessions, optional Firebase AI Logic wording, and explicit Firestore sync.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
