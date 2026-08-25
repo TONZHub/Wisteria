@@ -564,7 +564,10 @@ fun WisteriaMainApp(
                         )
                         WisteriaTab.RHYTHM_CARE -> RhythmMemoryScreen(
                             uiState = uiState,
-                            memories = memories
+                            memories = memories,
+                            onConversationMemoryChanged = viewModel::setConversationMemoryEnabled,
+                            onDeleteMemory = viewModel::deleteMemory,
+                            onForgetConversationMemories = viewModel::forgetConversationMemories
                         )
                     }
                 }
