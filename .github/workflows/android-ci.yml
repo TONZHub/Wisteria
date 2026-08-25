@@ -56,6 +56,10 @@ jobs:
             -storepass android \
             -alias androiddebugkey \
             > "$RUNNER_TEMP/debug-signing-certificate.txt"
+          {
+            echo "### Debug signing certificate"
+            grep -E 'SHA1:|SHA256:' "$RUNNER_TEMP/debug-signing-certificate.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -66,6 +70,12 @@ jobs:
 
       - name: Test and build debug APK
         run: ./gradlew testDebugUnitTest assembleDebug --stacktrace
+
+      - name: Prepare clean APK artifact
+        run: |
+          mkdir -p "$RUNNER_TEMP/wisteria-apk"
+          cp app/build/outputs/apk/debug/app-debug.apk \
+            "$RUNNER_TEMP/wisteria-apk/Wisteria-debug.apk"
 
       - name: Upload unit-test report
         if: always()
@@ -80,9 +90,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: wisteria-debug-apk
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            ${{ runner.temp }}/debug-signing-certificate.txt
+          path: ${{ runner.temp }}/wisteria-apk/Wisteria-debug.apk
           if-no-files-found: error
           retention-days: 14
 
