@@ -20,6 +20,7 @@ jobs:
       STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
       KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
       KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+      MEMORY_SERVICE_URL: ${{ vars.MEMORY_SERVICE_URL }}
 
     steps:
       - name: Check out source
@@ -33,6 +34,7 @@ jobs:
             STORE_PASSWORD
             KEY_PASSWORD
             KEY_ALIAS
+            MEMORY_SERVICE_URL
           )
           for variable in "${required[@]}"; do
             test -n "${!variable}" || {
