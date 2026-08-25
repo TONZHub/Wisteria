@@ -21,6 +21,12 @@ def client():
     main.app.dependency_overrides.clear()
 
 
+def test_ready_endpoint_is_public(client):
+    response = client.get("/ready")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
 def test_rejects_secret_and_prompt_injection(client):
     for fact in (
         "My password is please-never-store-this",
