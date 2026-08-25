@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
+import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.health.connect.client.PermissionController
@@ -51,6 +52,7 @@ import com.example.ui.viewmodel.DailyCheckInViewModel
 import com.example.ui.viewmodel.ThemeMode
 import com.example.domain.export.CheckInExportFormatter
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
@@ -232,15 +234,41 @@ fun WisteriaMainApp(
                 val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = webClientId)
                     .build()
 
-                val request = GetCredentialRequest.Builder()
+                val buttonRequest = GetCredentialRequest.Builder()
                     .addCredentialOption(signInOption)
                     .build()
 
                 try {
-                    val result = credentialManager.getCredential(
-                        request = request,
-                        context = context,
-                    )
+                    val result = try {
+                        credentialManager.getCredential(
+                            request = buttonRequest,
+                            context = context,
+                        )
+                    } catch (firstError: GetCredentialException) {
+                        Log.w(
+                            "Wisteria",
+                            "Primary Google account flow failed; retrying with account chooser",
+                            firstError
+                        )
+                        runCatching {
+                            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+                        }.onFailure { clearError ->
+                            Log.w("Wisteria", "Could not clear stale credential state", clearError)
+                        }
+
+                        val accountChooserOption = GetGoogleIdOption.Builder()
+                            .setServerClientId(webClientId)
+                            .setFilterByAuthorizedAccounts(false)
+                            .setAutoSelectEnabled(false)
+                            .build()
+                        val accountChooserRequest = GetCredentialRequest.Builder()
+                            .addCredentialOption(accountChooserOption)
+                            .build()
+                        credentialManager.getCredential(
+                            request = accountChooserRequest,
+                            context = context,
+                        )
+                    }
                     val credential = result.credential
                     
                     if (credential is androidx.credentials.CustomCredential && 
