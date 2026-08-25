@@ -13,6 +13,7 @@ import com.example.data.local.WisteriaDatabase
 import com.example.data.local.entity.CareActionEntity
 import com.example.data.local.entity.AgentMemoryEntity
 import com.example.data.local.entity.DailyCheckInEntity
+import com.example.data.memory.ConversationMemoryManager
 import com.example.data.repository.WisteriaRepository
 import com.example.domain.agent.model.AgentExecutionState
 import com.example.domain.agent.model.AgentMessage
@@ -66,7 +67,8 @@ data class CheckInUiState(
     val isReminderEnabled: Boolean = false,
     val hasAlarmNotificationAccess: Boolean = false,
     val hasExactAlarmAccess: Boolean = false,
-    val hasFullScreenAlarmAccess: Boolean = false
+    val hasFullScreenAlarmAccess: Boolean = false,
+    val isConversationMemoryEnabled: Boolean = false
 )
 
 class DailyCheckInViewModel(application: Application) : AndroidViewModel(application) {
@@ -74,6 +76,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     private val repository = WisteriaRepository(database.checkInDao())
     private val healthManager = HealthConnectManager(application)
     private val reminderManager = CheckInReminderManager(application)
+    private val conversationMemoryManager = ConversationMemoryManager(application)
     private val voiceController = VoiceConversationController(application) { transcript ->
         sendMessageInternal(transcript, speakResponse = true)
     }
@@ -112,6 +115,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         refreshLoginState()
         checkHealthState()
         refreshReminderState()
+        refreshConversationMemoryState()
         loadChatHistory()
     }
 
@@ -201,6 +205,38 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
 
     fun setThemeMode(mode: ThemeMode) {
         _uiState.value = _uiState.value.copy(themeMode = mode)
+    }
+
+    private fun refreshConversationMemoryState() {
+        _uiState.value = _uiState.value.copy(
+            isConversationMemoryEnabled = conversationMemoryManager.isEnabled()
+        )
+    }
+
+    fun setConversationMemoryEnabled(enabled: Boolean) {
+        conversationMemoryManager.setEnabled(enabled)
+        refreshConversationMemoryState()
+        _uiState.value = _uiState.value.copy(
+            agentStatusMessage = if (enabled) {
+                "Conversation memory on. New useful context can be remembered locally."
+            } else {
+                "Conversation memory paused. Existing notes remain until you delete them."
+            }
+        )
+    }
+
+    fun deleteMemory(key: String) {
+        viewModelScope.launch {
+            repository.deleteMemory(key)
+            _uiState.value = _uiState.value.copy(agentStatusMessage = "Memory deleted.")
+        }
+    }
+
+    fun forgetConversationMemories() {
+        viewModelScope.launch {
+            repository.deleteConversationMemories()
+            _uiState.value = _uiState.value.copy(agentStatusMessage = "Conversation memories cleared.")
+        }
     }
 
     fun setReminder(hour: Int, minute: Int) {
@@ -331,9 +367,15 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             try {
                 val healthContext = healthManager.fetchPrivateResponseContext()
+                val rememberedContext = if (conversationMemoryManager.isEnabled()) {
+                    repository.getConversationMemories()
+                } else {
+                    emptyList()
+                }
                 val agentResponse = repository.checkInAgent.processUserTurn(
                     userPrompt = userText,
                     conversationHistory = updatedMessages,
+                    rememberedContext = rememberedContext,
                     healthContext = healthContext,
                     requestedIntent = requestedIntent,
                     onStateChange = { state, status ->
@@ -348,11 +390,20 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
                     }
                 )
 
+                val remembered = conversationMemoryManager.extract(userText, agentResponse.turnIntent)
+                if (remembered != null) {
+                    repository.saveConversationMemory(remembered)
+                }
+
                 val newPulse = agentResponse.structuredPulse ?: _uiState.value.latestPulse
                 _uiState.value = _uiState.value.copy(
                     messages = _uiState.value.messages + agentResponse,
                     agentState = AgentExecutionState.IDLE,
-                    agentStatusMessage = completedTurnStatus(agentResponse),
+                    agentStatusMessage = if (remembered != null) {
+                        "Remembered one conversation note locally."
+                    } else {
+                        completedTurnStatus(agentResponse)
+                    },
                     latestPulse = newPulse,
                     isAgentActive = false
                 )
