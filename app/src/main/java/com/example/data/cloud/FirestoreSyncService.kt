@@ -103,7 +103,7 @@ class FirestoreSyncServiceImpl(
     }
 
     override suspend fun fetchTextureSummary(): List<Map<String, Any>> {
-        val userId = signedInGoogleUserId() ?: return emptyList()
+        val userId = signedInUserId() ?: return emptyList()
         val snapshot = firestore.collection("users").document(userId)
             .collection("daily_timeline").get().await()
 
