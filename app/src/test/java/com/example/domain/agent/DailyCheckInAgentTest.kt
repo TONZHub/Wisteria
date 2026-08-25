@@ -152,8 +152,10 @@ class DailyCheckInAgentTest {
     }
 
     @Test
-    fun `memory recall works locally without authorizing a write`() = runTest {
-        val model = FakeCompanionModelService()
+    fun `memory recall uses grounded model wording without authorizing a write`() = runTest {
+        val model = FakeCompanionModelService(
+            response = "Music usually helps you feel calm. Does that still feel true?"
+        )
         val memory = AgentMemoryEntity(
             memoryKey = "conversation_support_music",
             memoryValue = "music usually calms me down",
@@ -169,9 +171,44 @@ class DailyCheckInAgentTest {
         )
 
         assertEquals(AgentTurnIntent.GENERAL, response.turnIntent)
-        assertTrue(response.text.contains(memory.memoryValue))
+        assertEquals(
+            "Music usually helps you feel calm. Does that still feel true?",
+            response.text
+        )
         assertTrue(response.toolInvocations.isEmpty())
-        assertTrue(model.prompts.isEmpty())
+        assertEquals(1, model.prompts.size)
+        assertTrue(model.prompts.single().contains(memory.memoryValue))
+        assertTrue(model.prompts.single().contains("Memory recall response rules (FINAL)"))
+        assertTrue(model.prompts.single().contains("This is a read-only turn"))
+        assertEquals("Fake ADK runtime", response.runtimeTrace?.framework)
+    }
+
+    @Test
+    fun `memory recall rejects model wording that adds an unsupported detail`() = runTest {
+        val model = FakeCompanionModelService(
+            response = "Music and a warm bath always settle you."
+        )
+        val memory = AgentMemoryEntity(
+            memoryKey = "conversation_support_music",
+            memoryValue = "quiet music usually keeps me calm",
+            category = "CONVERSATION_SUPPORT"
+        )
+
+        val response = buildAgent(model = model).processUserTurn(
+            userPrompt = "What usually keeps me calm?",
+            conversationHistory = emptyList(),
+            rememberedContext = listOf(memory),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(
+            "Quiet music usually keeps you calm. Does that still feel true for you?",
+            response.text
+        )
+        assertFalse(response.text.contains("bath", ignoreCase = true))
+        assertTrue(response.toolInvocations.isEmpty())
+        assertEquals(1, model.startedSessions)
     }
 
     @Test
@@ -193,9 +230,12 @@ class DailyCheckInAgentTest {
         )
 
         assertEquals(AgentTurnIntent.GENERAL, response.turnIntent)
-        assertTrue(response.text.contains(memory.memoryValue))
+        assertEquals(
+            "Quiet music usually keeps you calm. Does that still feel true for you?",
+            response.text
+        )
         assertTrue(response.toolInvocations.isEmpty())
-        assertTrue(model.prompts.isEmpty())
+        assertEquals(1, model.prompts.size)
 
         agent.processUserTurn(
             userPrompt = "4 (Steady)",
@@ -212,7 +252,14 @@ class DailyCheckInAgentTest {
         )
 
         assertEquals(AgentTurnIntent.FOLLOW_UP, followUp.turnIntent)
-        assertTrue(followUp.text.contains(memory.memoryValue))
+        assertEquals(
+            "Quiet music usually keeps you calm. Does that still feel true for you?",
+            followUp.text
+        )
+        assertEquals(
+            2,
+            model.prompts.count { it.contains("Memory recall response rules (FINAL)") }
+        )
     }
 
     @Test
@@ -225,7 +272,7 @@ class DailyCheckInAgentTest {
             onToolExecuted = { }
         )
 
-        assertTrue(response.text.contains("don't have any conversation memories"))
+        assertTrue(response.text.contains("don't have a conversation memory"))
         assertTrue(response.toolInvocations.isEmpty())
     }
 
