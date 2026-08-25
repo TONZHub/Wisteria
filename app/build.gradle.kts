@@ -32,7 +32,12 @@ android {
 
   signingConfigs {
     create("debugConfig") {
-      storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+      // Committed, shared debug keystore so every build (CI, local, each
+      // developer) signs with one stable identity. Its SHA-1 is registered in
+      // the Firebase project so Google Sign-In works from any debug build.
+      // A debug keystore is not a secret: it uses the well-known
+      // "android"/"android" credentials by convention.
+      storeFile = file("${rootDir}/debug.keystore")
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"
