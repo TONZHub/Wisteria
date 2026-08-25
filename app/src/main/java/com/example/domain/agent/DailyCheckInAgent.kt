@@ -73,10 +73,14 @@ class DailyCheckInAgent(
                 intent = decision.intent,
                 pulse = pulse,
                 currentPulse = sessionAtStart.currentPulse,
-                userPrompt = userPrompt
+                userPrompt = userPrompt,
+                rememberedContext = rememberedContext
             )
 
-            val modelReply = if (shouldAskModel(decision.intent)) {
+            val modelReply = if (
+                shouldAskModel(decision.intent) &&
+                !isMemoryRecallQuestion(userPrompt)
+            ) {
                 val modelPrompt = buildModelPrompt(
                     userPrompt = userPrompt,
                     history = conversationHistory,
@@ -273,7 +277,8 @@ class DailyCheckInAgent(
         intent: AgentTurnIntent,
         pulse: DailyPulseData?,
         currentPulse: DailyPulseData?,
-        userPrompt: String
+        userPrompt: String,
+        rememberedContext: List<AgentMemoryEntity>
     ): String = when (intent) {
         AgentTurnIntent.CHECK_IN -> generateLocalCheckInResponse(requireNotNull(pulse))
         AgentTurnIntent.CARE_REQUEST -> generateCareIdea(currentPulse)
@@ -287,10 +292,51 @@ class DailyCheckInAgent(
             "I'm with you. Say a little more, or tell me you're done."
         }
         AgentTurnIntent.END_SESSION -> "All right. I'm here when you want me."
-        AgentTurnIntent.GENERAL ->
+        AgentTurnIntent.GENERAL -> if (isMemoryRecallQuestion(userPrompt)) {
+            generateMemoryRecallResponse(rememberedContext)
+        } else {
             "I'm here. You can check in with bright, steady, heavy, off, or a number from 1 to 5."
+        }
         AgentTurnIntent.DUPLICATE_CHECK_IN ->
             "I already have that check-in for this conversation, so I didn't add it twice."
+    }
+
+    private fun isMemoryRecallQuestion(userPrompt: String): Boolean {
+        val normalized = userPrompt
+            .lowercase()
+            .replace(Regex("[^a-z0-9 ]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return listOf(
+            "what do you remember",
+            "what have you remembered",
+            "what do you know about me",
+            "tell me what you remember",
+            "remember about me",
+            "do you remember my",
+            "what helps me",
+            "what calms me",
+            "what usually calms me"
+        ).any(normalized::contains)
+    }
+
+    private fun generateMemoryRecallResponse(
+        rememberedContext: List<AgentMemoryEntity>
+    ): String {
+        val memories = rememberedContext
+            .asSequence()
+            .filter { it.category.startsWith("CONVERSATION_") }
+            .map { it.memoryValue.trim() }
+            .filter { it.isNotBlank() && !it.endsWith("?") }
+            .distinctBy { it.lowercase() }
+            .take(5)
+            .toList()
+
+        if (memories.isEmpty()) {
+            return "I don't have any conversation memories saved yet."
+        }
+
+        return "Here's what I remember from things you shared: ${memories.joinToString("; ")}."
     }
 
     private fun generateLocalCheckInResponse(pulse: DailyPulseData): String = when {
