@@ -207,6 +207,15 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         _uiState.value = _uiState.value.copy(agentStatusMessage = message)
     }
 
+    private fun clearStatusAfter(message: String, delayMillis: Long = 4_000L) {
+        viewModelScope.launch {
+            delay(delayMillis)
+            if (_uiState.value.agentStatusMessage == message) {
+                _uiState.value = _uiState.value.copy(agentStatusMessage = "Ready for a check-in")
+            }
+        }
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         _uiState.value = _uiState.value.copy(themeMode = mode)
     }
@@ -220,26 +229,30 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     fun setConversationMemoryEnabled(enabled: Boolean) {
         conversationMemoryManager.setEnabled(enabled)
         refreshConversationMemoryState()
-        _uiState.value = _uiState.value.copy(
-            agentStatusMessage = if (enabled) {
-                "Conversation memory on. New useful context can be remembered locally."
-            } else {
-                "Conversation memory paused. Existing notes remain until you delete them."
-            }
-        )
+        val message = if (enabled) {
+            "Conversation memory on. New useful context can be remembered locally."
+        } else {
+            "Conversation memory paused. Existing notes remain until you delete them."
+        }
+        _uiState.value = _uiState.value.copy(agentStatusMessage = message)
+        clearStatusAfter(message)
     }
 
     fun deleteMemory(key: String) {
         viewModelScope.launch {
             repository.deleteMemory(key)
-            _uiState.value = _uiState.value.copy(agentStatusMessage = "Memory deleted.")
+            val message = "Memory deleted."
+            _uiState.value = _uiState.value.copy(agentStatusMessage = message)
+            clearStatusAfter(message)
         }
     }
 
     fun forgetConversationMemories() {
         viewModelScope.launch {
             repository.deleteConversationMemories()
-            _uiState.value = _uiState.value.copy(agentStatusMessage = "Conversation memories cleared.")
+            val message = "Conversation memories cleared."
+            _uiState.value = _uiState.value.copy(agentStatusMessage = message)
+            clearStatusAfter(message)
         }
     }
 
@@ -400,17 +413,19 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
                 }
 
                 val newPulse = agentResponse.structuredPulse ?: _uiState.value.latestPulse
+                val completionStatus = if (remembered != null) {
+                    "Remembered one conversation note locally."
+                } else {
+                    completedTurnStatus(agentResponse)
+                }
                 _uiState.value = _uiState.value.copy(
                     messages = _uiState.value.messages + agentResponse,
                     agentState = AgentExecutionState.IDLE,
-                    agentStatusMessage = if (remembered != null) {
-                        "Remembered one conversation note locally."
-                    } else {
-                        completedTurnStatus(agentResponse)
-                    },
+                    agentStatusMessage = completionStatus,
                     latestPulse = newPulse,
                     isAgentActive = false
                 )
+                if (remembered != null) clearStatusAfter(completionStatus)
                 if (speakResponse) {
                     voiceController.onAgentResponse(
                         text = agentResponse.text,
