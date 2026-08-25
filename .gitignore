@@ -10,9 +10,12 @@
 .cxx
 local.properties
 .env
-debug.keystore
 *.jks
 *.keystore
+# Exception: the shared debug keystore is intentionally committed so every
+# build signs with one stable, Firebase-registered SHA-1. Debug keys are not
+# secrets (well-known "android"/"android" credentials).
+!debug.keystore
 .artifacts/
 
 app/google-services.json

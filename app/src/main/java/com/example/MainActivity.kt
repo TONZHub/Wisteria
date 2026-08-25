@@ -69,6 +69,18 @@ private enum class VoiceStartAction {
     CALL
 }
 
+/**
+ * Why a Google Sign-In attempt did not complete. Distinguishes a genuinely
+ * missing account from an app-configuration problem (this build's signing
+ * certificate is not registered in the Firebase project) so the dialog can
+ * explain the real cause instead of always blaming a missing account.
+ */
+private enum class SignInIssue {
+    NO_ACCOUNT,
+    NOT_AUTHORIZED,
+    UNKNOWN
+}
+
 class MainActivity : ComponentActivity() {
     private lateinit var viewModel: DailyCheckInViewModel
 
@@ -158,7 +170,7 @@ fun WisteriaMainApp(
         var showInfoDialog by remember { mutableStateOf(false) }
         var showArchitecture by remember { mutableStateOf(false) }
         var showSupport by remember { mutableStateOf(false) }
-        var showNoGoogleAccountDialog by remember { mutableStateOf(false) }
+        var signInIssue by remember { mutableStateOf<SignInIssue?>(null) }
 
         val healthLauncher = rememberLauncherForActivityResult(
             PermissionController.createRequestPermissionResultContract()
@@ -260,21 +272,26 @@ fun WisteriaMainApp(
                     }
                 } catch (e: androidx.credentials.exceptions.NoCredentialException) {
                     Log.i("Wisteria", "No Google account found on device: ${e.message}")
-                    showNoGoogleAccountDialog = true
+                    signInIssue = SignInIssue.NO_ACCOUNT
                 } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
                     Log.i("Wisteria", "Google Sign-In canceled by user")
                     viewModel.setStatusMessage("Sign-in canceled")
                 } catch (e: GetCredentialException) {
                     val msg = e.message ?: ""
                     Log.w("Wisteria", "Google Sign-In notice: $msg")
-                    if (msg.contains("16") || msg.contains("No credential", ignoreCase = true) || msg.contains("28436")) {
-                        showNoGoogleAccountDialog = true
+                    // Errors 16 / 28436 mean this app build is not authorized for
+                    // Google Sign-In (its signing SHA-1 is not registered in the
+                    // Firebase project) — a setup problem, not a missing account.
+                    if (msg.contains("16") || msg.contains("28436")) {
+                        signInIssue = SignInIssue.NOT_AUTHORIZED
+                    } else if (msg.contains("No credential", ignoreCase = true)) {
+                        signInIssue = SignInIssue.NO_ACCOUNT
                     } else {
                         viewModel.setStatusMessage("Sign-in error: $msg")
                     }
                 } catch (e: Exception) {
                     Log.w("Wisteria", "Sign-in notice: ${e.message}")
-                    showNoGoogleAccountDialog = true
+                    signInIssue = SignInIssue.UNKNOWN
                 }
             }
         }
@@ -419,9 +436,25 @@ fun WisteriaMainApp(
                 )
             }
 
-            if (showNoGoogleAccountDialog) {
+            signInIssue?.let { issue ->
+                val headline = when (issue) {
+                    SignInIssue.NO_ACCOUNT ->
+                        "No Google account is available to sign in on this device."
+                    SignInIssue.NOT_AUTHORIZED ->
+                        "This app build isn't authorized for Google Sign-In yet."
+                    SignInIssue.UNKNOWN ->
+                        "Google Sign-In couldn't be completed right now."
+                }
+                val detail = when (issue) {
+                    SignInIssue.NO_ACCOUNT ->
+                        "• Add a Google account in Android Settings, then try again.\n• Or use Demo Sign-In to explore timeline, memory, and sync right away."
+                    SignInIssue.NOT_AUTHORIZED ->
+                        "• This build's signing certificate isn't registered in the app's Firebase project — a developer setup step, not a problem with your account.\n• Use Demo Sign-In to explore timeline, memory, and sync in the meantime."
+                    SignInIssue.UNKNOWN ->
+                        "• Check your connection and try again.\n• Or use Demo Sign-In to explore timeline, memory, and sync right away."
+                }
                 AlertDialog(
-                    onDismissRequest = { showNoGoogleAccountDialog = false },
+                    onDismissRequest = { signInIssue = null },
                     icon = {
                         Icon(
                             imageVector = Icons.Default.Cloud,
@@ -438,11 +471,11 @@ fun WisteriaMainApp(
                     text = {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "No Google account is configured on this Android device or emulator.",
+                                text = headline,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "• You can add a real Google account in Android Settings.\n• Or use Demo Sign-In to test timeline persistence, memory, and sync features immediately.",
+                                text = detail,
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     lineHeight = 18.sp
@@ -453,7 +486,7 @@ fun WisteriaMainApp(
                     confirmButton = {
                         Button(
                             onClick = {
-                                showNoGoogleAccountDialog = false
+                                signInIssue = null
                                 viewModel.signInWithDemo()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -464,25 +497,30 @@ fun WisteriaMainApp(
                     },
                     dismissButton = {
                         Row {
-                            TextButton(
-                                onClick = {
-                                    showNoGoogleAccountDialog = false
-                                    runCatching {
-                                        val intent = Intent(Settings.ACTION_ADD_ACCOUNT).apply {
-                                            putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
-                                        }
-                                        context.startActivity(intent)
-                                    }.onFailure {
+                            // Adding an account only helps when one is actually
+                            // missing; for an authorization/unknown failure it
+                            // would not, so offer it only for NO_ACCOUNT.
+                            if (issue == SignInIssue.NO_ACCOUNT) {
+                                TextButton(
+                                    onClick = {
+                                        signInIssue = null
                                         runCatching {
-                                            context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                            val intent = Intent(Settings.ACTION_ADD_ACCOUNT).apply {
+                                                putExtra(Settings.EXTRA_ACCOUNT_TYPES, arrayOf("com.google"))
+                                            }
+                                            context.startActivity(intent)
+                                        }.onFailure {
+                                            runCatching {
+                                                context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                            }
                                         }
                                     }
+                                ) {
+                                    Text("Device Settings")
                                 }
-                            ) {
-                                Text("Device Settings")
+                                Spacer(modifier = Modifier.width(4.dp))
                             }
-                            Spacer(modifier = Modifier.width(4.dp))
-                            TextButton(onClick = { showNoGoogleAccountDialog = false }) {
+                            TextButton(onClick = { signInIssue = null }) {
                                 Text("Cancel")
                             }
                         }
