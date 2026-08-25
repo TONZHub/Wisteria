@@ -617,6 +617,7 @@ fun WisteriaMainApp(
                             onRunNightShift = { viewModel.runNightShift() },
                             onTriggerFirestoreSync = { viewModel.triggerFirestoreSync() },
                             onSignInWithGoogle = onSignInWithGoogle,
+                            onContinuePrivately = { viewModel.signInAnonymously() },
                             onSignOut = { viewModel.signOut() },
                             onConnectHealth = onConnectHealth,
                             onSetReminder = setCheckInAlarm,

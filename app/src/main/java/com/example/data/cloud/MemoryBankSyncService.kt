@@ -102,7 +102,7 @@ class FirebaseMemoryBankSyncService(
 data class BridgeTokens(val idToken: String, val appCheckToken: String)
 
 private suspend fun firebaseBridgeTokens(): BridgeTokens {
-    val user = Firebase.auth.currentUser?.takeUnless { it.isAnonymous }
+    val user = Firebase.auth.currentUser
         ?: error("Sign in before syncing conversation memory")
     val idToken = user.getIdToken(false).await().token
         ?: error("Firebase did not return an ID token")

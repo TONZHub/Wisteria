@@ -21,6 +21,7 @@ interface FirestoreSyncService {
     suspend fun syncDailyCheckIn(pulse: DailyPulseData): FirestoreSyncRecord
     suspend fun fetchTextureSummary(): List<Map<String, Any>>
     suspend fun signInWithGoogle(idToken: String)
+    suspend fun signInAnonymously()
     fun signOut()
     fun isUserLoggedIn(): Boolean
     fun getUserEmail(): String?
@@ -49,22 +50,27 @@ class FirestoreSyncServiceImpl(
         auth.signInWithCredential(credential).await()
     }
 
+    override suspend fun signInAnonymously() {
+        val auth = safeAuth() ?: error("Firebase not initialized")
+        if (auth.currentUser == null) auth.signInAnonymously().await()
+    }
+
     override fun signOut() {
         safeAuth()?.signOut()
     }
 
-    private fun signedInGoogleUserId(): String? =
-        safeAuth()?.currentUser?.takeUnless { it.isAnonymous }?.uid
+    private fun signedInUserId(): String? = safeAuth()?.currentUser?.uid
 
-    override fun isUserLoggedIn(): Boolean = signedInGoogleUserId() != null
+    override fun isUserLoggedIn(): Boolean = signedInUserId() != null
 
     override fun getUserEmail(): String? {
-        return safeAuth()?.currentUser?.email
+        val user = safeAuth()?.currentUser ?: return null
+        return user.email ?: if (user.isAnonymous) "Private device session" else null
     }
 
     override suspend fun syncDailyCheckIn(pulse: DailyPulseData): FirestoreSyncRecord {
-        val userId = signedInGoogleUserId()
-            ?: error("Sign in with Google before syncing to Firestore")
+        val userId = signedInUserId()
+            ?: error("Sign in before syncing to Firestore")
 
         val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         val docRef = firestore.collection("users").document(userId)

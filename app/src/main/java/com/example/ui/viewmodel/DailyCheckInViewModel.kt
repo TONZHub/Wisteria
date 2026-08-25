@@ -197,6 +197,21 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    fun signInAnonymously() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(agentStatusMessage = "Creating a private session...")
+            try {
+                repository.signInAnonymously()
+                refreshLoginState()
+                _uiState.value = _uiState.value.copy(agentStatusMessage = "Private session ready")
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    agentStatusMessage = "Private sign-in failed: ${e.message ?: "unknown error"}"
+                )
+            }
+        }
+    }
+
     fun signOut() {
         repository.signOut()
         refreshLoginState()

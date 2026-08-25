@@ -18,6 +18,10 @@ class FakeFirestoreSyncService(
         signedIn = true
     }
 
+    override suspend fun signInAnonymously() {
+        signedIn = true
+    }
+
     override fun signOut() {
         signedIn = false
     }

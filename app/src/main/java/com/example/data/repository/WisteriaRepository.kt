@@ -98,6 +98,10 @@ class WisteriaRepository(
         firestoreService.signInWithGoogle(idToken)
     }
 
+    suspend fun signInAnonymously() {
+        firestoreService.signInAnonymously()
+    }
+
     fun signOut() {
         firestoreService.signOut()
     }

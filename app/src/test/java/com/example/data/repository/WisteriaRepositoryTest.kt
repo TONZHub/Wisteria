@@ -18,6 +18,20 @@ import org.junit.Test
 class WisteriaRepositoryTest {
 
     @Test
+    fun `private sign in creates an authenticated repository session`() = runTest {
+        val firestore = FakeFirestoreSyncService()
+        val repository = WisteriaRepository(
+            FakeCheckInDao(),
+            firestore,
+            FakeNightShiftService()
+        )
+
+        repository.signInAnonymously()
+
+        assertTrue(repository.isUserLoggedIn())
+    }
+
+    @Test
     fun `save starts local and pending optional sync`() = runTest {
         val repository = WisteriaRepository(
             FakeCheckInDao(),

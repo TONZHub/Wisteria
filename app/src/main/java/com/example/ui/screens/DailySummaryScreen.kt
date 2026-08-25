@@ -79,6 +79,7 @@ fun DailySummaryScreen(
     onRunNightShift: () -> Unit,
     onTriggerFirestoreSync: () -> Unit,
     onSignInWithGoogle: () -> Unit,
+    onContinuePrivately: () -> Unit,
     onSignOut: () -> Unit,
     onConnectHealth: () -> Unit,
     onSetReminder: (Int, Int) -> Unit,
@@ -335,15 +336,16 @@ fun DailySummaryScreen(
                                 modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                GoogleBrandMark(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .testTag("google_account_brand_mark")
+                                Icon(
+                                    imageVector = Icons.Default.Shield,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = ForestGreenMint
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
-                                        text = if (uiState.isUserLoggedIn) "Google Account" else "Google Cloud Firestore",
+                                        text = if (uiState.isUserLoggedIn) "Secure cloud identity" else "Google Cloud Firestore",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                                     )
                                     if (uiState.isUserLoggedIn && uiState.userEmail != null) {
@@ -387,25 +389,42 @@ fun DailySummaryScreen(
                                 Text("Sync Daily Timeline", fontSize = 13.sp)
                             }
                         } else {
-                            OutlinedButton(
-                                onClick = onSignInWithGoogle,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("sign_in_google_button"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-                                contentPadding = PaddingValues(vertical = 12.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    GoogleBrandMark(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .testTag("google_sign_in_brand_mark")
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(
+                                    onClick = onSignInWithGoogle,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("sign_in_google_button"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                                    contentPadding = PaddingValues(vertical = 12.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        GoogleBrandMark(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .testTag("google_sign_in_brand_mark")
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            "Sign in with Google",
+                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                    }
+                                }
+                                OutlinedButton(
+                                    onClick = onContinuePrivately,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("continue_privately_button"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(vertical = 12.dp)
+                                ) {
+                                    Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        "Sign in with Google",
+                                        "Continue privately",
                                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
                                     )
                                 }
@@ -424,7 +443,7 @@ fun DailySummaryScreen(
                             )
                         } else {
                             Text(
-                                text = "Not signed in · Google sign-in required for sync",
+                                text = "Choose Google or a private device session to sync",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 10.sp,
