@@ -58,6 +58,25 @@ class WisteriaRepository(
     fun getAllCareActionsFlow(): Flow<List<CareActionEntity>> = checkInDao.getAllCareActionsFlow()
     fun getAllMemoriesFlow(): Flow<List<AgentMemoryEntity>> = checkInDao.getAllMemoriesFlow()
 
+    suspend fun getConversationMemories(): List<AgentMemoryEntity> =
+        checkInDao.getAllMemoriesFlow().first()
+            .filter { it.category.startsWith("CONVERSATION_") }
+            .sortedByDescending { it.updatedAt }
+            .take(12)
+
+    suspend fun saveConversationMemory(memory: AgentMemoryEntity) {
+        require(memory.category.startsWith("CONVERSATION_"))
+        checkInDao.insertMemory(memory)
+    }
+
+    suspend fun deleteMemory(key: String) {
+        checkInDao.deleteMemory(key)
+    }
+
+    suspend fun deleteConversationMemories() {
+        checkInDao.deleteConversationMemories()
+    }
+
     fun isUserLoggedIn(): Boolean = firestoreService.isUserLoggedIn()
     fun getUserEmail(): String? = firestoreService.getUserEmail()
 

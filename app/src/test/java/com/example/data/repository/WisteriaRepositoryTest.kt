@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import com.example.data.local.entity.CareActionEntity
+import com.example.data.local.entity.AgentMemoryEntity
 import com.example.domain.agent.model.DailyPulseData
 import com.example.domain.agent.model.DailyTexture
 import com.example.testutil.FakeCheckInDao
@@ -128,6 +129,30 @@ class WisteriaRepositoryTest {
         assertEquals(1, nightShift.receivedHistory.single().size)
         assertEquals(DailyTexture.OFF, nightShift.receivedHistory.single().first().texture)
         assertEquals("DAILY_PATTERN", repository.getAllMemoriesFlow().first().single().category)
+    }
+
+    @Test
+    fun `conversation notes can be reviewed and forgotten without deleting pattern notes`() = runTest {
+        val repository = WisteriaRepository(
+            FakeCheckInDao(),
+            FakeFirestoreSyncService(),
+            FakeNightShiftService()
+        )
+        repository.saveConversationMemory(
+            AgentMemoryEntity(
+                memoryKey = "conversation_work",
+                memoryValue = "Work has been overwhelming this week",
+                category = "CONVERSATION_CONTEXT"
+            )
+        )
+        repository.runNightShift()
+
+        assertEquals(1, repository.getConversationMemories().size)
+        repository.deleteConversationMemories()
+
+        val remaining = repository.getAllMemoriesFlow().first()
+        assertTrue(remaining.none { it.category.startsWith("CONVERSATION_") })
+        assertTrue(remaining.any { it.category == "DAILY_PATTERN" })
     }
 
     @Test

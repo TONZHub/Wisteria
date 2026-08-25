@@ -19,13 +19,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +50,9 @@ import com.example.ui.viewmodel.CheckInUiState
 fun RhythmMemoryScreen(
     uiState: CheckInUiState,
     memories: List<AgentMemoryEntity>,
+    onConversationMemoryChanged: (Boolean) -> Unit,
+    onDeleteMemory: (String) -> Unit,
+    onForgetConversationMemories: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val entries = uiState.textureSummary
@@ -101,7 +107,7 @@ fun RhythmMemoryScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "Built only from your own check-ins",
+                                    text = "Built from check-ins and memory you control",
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = ForestGreenMint,
                                         fontSize = 11.sp
@@ -127,6 +133,52 @@ fun RhythmMemoryScreen(
                                 ),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Remember useful conversation context",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = "New useful details can become local notes after the chat. Raw chat is not kept as a transcript.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Switch(
+                            checked = uiState.isConversationMemoryEnabled,
+                            onCheckedChange = onConversationMemoryChanged,
+                            modifier = Modifier.testTag("conversation_memory_switch")
+                        )
+                    }
+
+                    if (memories.any { it.category.startsWith("CONVERSATION_") }) {
+                        TextButton(
+                            onClick = onForgetConversationMemories,
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Forget conversation notes")
                         }
                     }
                 }
@@ -256,11 +308,11 @@ fun RhythmMemoryScreen(
             }
         }
 
-        // Pattern notes saved by local Night Shift runs.
+        // Pattern notes and opt-in context distilled from conversations.
         if (memories.isNotEmpty()) {
             item {
                 Text(
-                    text = "Saved Pattern Notes",
+                    text = "What Wisteria Remembers",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(top = 10.dp)
                 )
@@ -275,7 +327,10 @@ fun RhythmMemoryScreen(
                     )
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Bookmark,
                                 contentDescription = null,
@@ -284,9 +339,25 @@ fun RhythmMemoryScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = memory.memoryKey,
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                text = memory.category
+                                    .removePrefix("CONVERSATION_")
+                                    .replace('_', ' ')
+                                    .lowercase()
+                                    .replaceFirstChar { it.uppercase() }
+                                    .takeIf { memory.category.startsWith("CONVERSATION_") }
+                                    ?: "Pattern noticed",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                modifier = Modifier.weight(1f)
                             )
+                            androidx.compose.material3.IconButton(
+                                onClick = { onDeleteMemory(memory.memoryKey) },
+                                modifier = Modifier.testTag("delete_memory_${memory.memoryKey}")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete memory"
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(

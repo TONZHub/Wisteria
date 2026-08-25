@@ -62,4 +62,12 @@ class FakeCheckInDao : CheckInDao {
     override suspend fun insertMemory(memory: AgentMemoryEntity) {
         memories.value = memories.value.filterNot { it.memoryKey == memory.memoryKey } + memory
     }
+
+    override suspend fun deleteMemory(key: String) {
+        memories.value = memories.value.filterNot { it.memoryKey == key }
+    }
+
+    override suspend fun deleteConversationMemories() {
+        memories.value = memories.value.filterNot { it.category.startsWith("CONVERSATION_") }
+    }
 }

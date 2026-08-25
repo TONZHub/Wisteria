@@ -38,6 +38,7 @@ The demo-data button is explicit: every sample starts with `Demo:`, stays local,
 - A local session router that separates check-ins, follow-ups, idea requests, pattern questions, reminder requests, and conversation endings before any tool can run.
 - Duplicate-turn protection and visible receipts for local writes.
 - Local Room storage; Android backup is disabled for the app.
+- Opt-in conversational memory that distills bounded context, routines, preferences, and things that helped into reviewable local notes without retaining a raw chat transcript.
 - Everyday textures kept separate: bright, steady, heavy, off, or unlabeled.
 - User-triggered Night Shift learning from real heavy-to-off stretches in local history—no fixed schedule.
 - Sample-based confidence that grows only with saved history and observed transitions.
@@ -64,6 +65,7 @@ Google ADK Kotlin is used for the optional Firebase-backed dialogue runtime and 
 | Tool policy | Local allowlist; only explicit check-ins may write a daily record |
 | Texture selection | Deterministic Kotlin rules using the submitted number or words |
 | Pattern learning | `NightShiftAnalyzer`, on-device and user-triggered |
+| Conversation memory | Opt-in, bounded local notes in Room; reviewable and deletable; recalled as untrusted context |
 | Agent framework | Google ADK Kotlin 0.8.0 with an in-memory session reset at conversation boundaries |
 | Companion wording | ADK `LlmAgent` → Firebase AI Logic (`gemini-3.5-flash`), with local fallback |
 | Voice input | Android `SpeechRecognizer`; on-device recognition is preferred when available |
@@ -125,7 +127,7 @@ The tests cover everyday-language selection, intent routing, ADK runtime receipt
 - Wisteria does not retain raw microphone audio. The configured Android speech service produces a transcript, which passes through the same local intent router as typed text; conversational follow-ups are not saved as new check-ins.
 - Voice mode stops recognition while the agent reasons or speaks; hands-free mode opens a new finite listening turn only after speech playback ends.
 - Alarm notifications contain only the generic phrase “Your 3-second check-in is ready”; no saved check-in or Health Connect data appears on the lock screen.
-- ADK conversation events stay in memory only and become inaccessible when Wisteria starts or ends a conversation; they are not written to Room or Firestore.
+- ADK conversation events and raw chat stay in memory only and become inaccessible when Wisteria starts or ends a conversation. If conversational memory is enabled, a narrowly filtered local note may persist separately in Room and remains visible and deletable in Rhythm & Care.
 - Firestore sync requires an explicit button tap.
 - App data is excluded from Android backup.
 - The repository contains no Firebase configuration, developer API key, or personal planning artifact in its current tree.
