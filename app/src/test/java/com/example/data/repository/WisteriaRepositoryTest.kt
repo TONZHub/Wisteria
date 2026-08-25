@@ -7,6 +7,7 @@ import com.example.domain.agent.model.DailyTexture
 import com.example.testutil.FakeCheckInDao
 import com.example.testutil.FakeFirestoreSyncService
 import com.example.testutil.FakeNightShiftService
+import com.example.testutil.FakeMemoryBankSyncService
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -153,6 +154,60 @@ class WisteriaRepositoryTest {
         val remaining = repository.getAllMemoriesFlow().first()
         assertTrue(remaining.none { it.category.startsWith("CONVERSATION_") })
         assertTrue(remaining.any { it.category == "DAILY_PATTERN" })
+    }
+
+    @Test
+    fun `conversation memory is mirrored and remote recall is deduplicated`() = runTest {
+        val memoryBank = FakeMemoryBankSyncService()
+        val repository = WisteriaRepository(
+            FakeCheckInDao(),
+            FakeFirestoreSyncService(),
+            FakeNightShiftService(),
+            memoryBank
+        )
+        val local = AgentMemoryEntity(
+            memoryKey = "conversation_music",
+            memoryValue = "Quiet music usually helps me settle down",
+            category = "CONVERSATION_SUPPORT"
+        )
+        memoryBank.recalled = listOf(
+            local.copy(memoryKey = "remote_duplicate"),
+            AgentMemoryEntity(
+                memoryKey = "remote_work",
+                memoryValue = "Work has felt especially busy this week",
+                category = "CONVERSATION_CONTEXT"
+            )
+        )
+
+        repository.saveConversationMemory(local)
+        val recalled = repository.getConversationMemories("What might help right now?")
+
+        assertEquals(listOf(local), memoryBank.remembered)
+        assertEquals("What might help right now?", memoryBank.lastQuery)
+        assertEquals(2, recalled.size)
+        assertEquals(1, recalled.count { it.memoryValue == local.memoryValue })
+    }
+
+    @Test
+    fun `forget mirrors each local conversation note to memory bank`() = runTest {
+        val memoryBank = FakeMemoryBankSyncService()
+        val repository = WisteriaRepository(
+            FakeCheckInDao(),
+            FakeFirestoreSyncService(),
+            FakeNightShiftService(),
+            memoryBank
+        )
+        val note = AgentMemoryEntity(
+            memoryKey = "conversation_routine",
+            memoryValue = "I usually take a quiet break after work",
+            category = "CONVERSATION_ROUTINE"
+        )
+        repository.saveConversationMemory(note)
+
+        repository.deleteConversationMemories()
+
+        assertTrue(memoryBank.forgotAll)
+        assertTrue(repository.getConversationMemories().isEmpty())
     }
 
     @Test
