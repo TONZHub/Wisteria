@@ -68,6 +68,65 @@ jobs:
         if: env.FIREBASE_CONFIG_B64 != ''
         run: printf '%s' "$FIREBASE_CONFIG_B64" | base64 --decode > app/google-services.json
 
+      - name: Verify Firebase OAuth matches debug signing key
+        if: env.FIREBASE_CONFIG_B64 != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          package_name="com.zoeb.wisteria"
+          web_client_id="$(
+            jq -r --arg package "$package_name" '
+              [.client[]
+                | select(.client_info.android_client_info.package_name == $package)
+                | .oauth_client[]?
+                | select(.client_type == 3)
+                | .client_id][0] // empty
+              ' app/google-services.json
+          )"
+          test -n "$web_client_id" || {
+            echo "::error title=Firebase OAuth configuration missing::The Firebase config has no web OAuth client for $package_name."
+            exit 1
+          }
+
+          signing_sha1="$(
+            keytool -list -v \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android \
+              -alias androiddebugkey \
+              | sed -n 's/^[[:space:]]*SHA1: //p' \
+              | head -n 1
+          )"
+          test -n "$signing_sha1" || {
+            echo "::error title=Debug signing certificate unreadable::CI could not determine the APK signing SHA-1."
+            exit 1
+          }
+          signing_hash="$(tr -d ':' <<< "$signing_sha1" | tr '[:upper:]' '[:lower:]')"
+
+          registered_hashes="$(
+            jq -r --arg package "$package_name" '
+              .client[]
+              | select(.client_info.android_client_info.package_name == $package)
+              | .oauth_client[]?
+              | select(.client_type == 1)
+              | .android_info.certificate_hash // empty
+            ' app/google-services.json \
+              | tr '[:upper:]' '[:lower:]' \
+              | tr -d ':'
+          )"
+
+          grep -Fxq "$signing_hash" <<< "$registered_hashes" || {
+            echo "::error title=Firebase OAuth SHA-1 mismatch::This APK is signed with $signing_sha1, but that fingerprint is absent from the uploaded google-services.json. Add it to the Firebase Android app and refresh GOOGLE_SERVICES_JSON_B64."
+            exit 1
+          }
+
+          {
+            echo "### Firebase Google Sign-In configuration"
+            echo "- Android package: \`$package_name\`"
+            echo "- Debug signing SHA-1: \`$signing_sha1\`"
+            echo "- Web OAuth client: configured"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Test and build debug APK
         run: ./gradlew testDebugUnitTest assembleDebug --stacktrace
 
