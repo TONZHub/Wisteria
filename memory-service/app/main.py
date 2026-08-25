@@ -135,8 +135,8 @@ def memory_name(memory: MemoryInput) -> str:
 app = FastAPI(title="Wisteria Memory Bridge", docs_url=None, redoc_url=None)
 
 
-@app.get("/healthz")
-def healthz() -> dict[str, str]:
+@app.get("/ready")
+def ready() -> dict[str, str]:
     return {"status": "ok"}
 
 
