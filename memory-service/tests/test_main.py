@@ -39,6 +39,15 @@ def test_rejects_secret_and_prompt_injection(client):
         assert response.status_code == 422
 
 
+def test_rejects_questions_that_resemble_support_facts(client):
+    for fact in ("What usually calms me down?", "Could music help me settle down"):
+        response = client.post(
+            "/v1/memories",
+            json={"fact": fact, "category": "CONVERSATION_SUPPORT"},
+        )
+        assert response.status_code == 422
+
+
 def test_scope_is_stable_and_does_not_expose_uid():
     scope = main.user_scope(main.Caller(uid="user-123"))
     assert scope == main.user_scope(main.Caller(uid="user-123"))
