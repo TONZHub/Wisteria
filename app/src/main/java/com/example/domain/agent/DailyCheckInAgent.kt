@@ -279,26 +279,32 @@ class DailyCheckInAgent(
         currentPulse: DailyPulseData?,
         userPrompt: String,
         rememberedContext: List<AgentMemoryEntity>
-    ): String = when (intent) {
-        AgentTurnIntent.CHECK_IN -> generateLocalCheckInResponse(requireNotNull(pulse))
-        AgentTurnIntent.CARE_REQUEST -> generateCareIdea(currentPulse)
-        AgentTurnIntent.PATTERN_QUESTION ->
-            "I won't invent a pattern from this conversation. Rhythm Memory has the saved local view."
-        AgentTurnIntent.REMINDER_CHANGE ->
-            "I heard the reminder request. Nothing changed—use Reminder settings to choose or confirm the time."
-        AgentTurnIntent.FOLLOW_UP -> if (userPrompt.contains("why", ignoreCase = true)) {
-            "I can reflect what you told me, but I won't guess at why today feels this way."
-        } else {
-            "I'm with you. Say a little more, or tell me you're done."
+    ): String {
+        if (
+            intent in setOf(AgentTurnIntent.GENERAL, AgentTurnIntent.FOLLOW_UP) &&
+            isMemoryRecallQuestion(userPrompt)
+        ) {
+            return generateMemoryRecallResponse(rememberedContext)
         }
-        AgentTurnIntent.END_SESSION -> "All right. I'm here when you want me."
-        AgentTurnIntent.GENERAL -> if (isMemoryRecallQuestion(userPrompt)) {
-            generateMemoryRecallResponse(rememberedContext)
-        } else {
-            "I'm here. You can check in with bright, steady, heavy, off, or a number from 1 to 5."
+
+        return when (intent) {
+            AgentTurnIntent.CHECK_IN -> generateLocalCheckInResponse(requireNotNull(pulse))
+            AgentTurnIntent.CARE_REQUEST -> generateCareIdea(currentPulse)
+            AgentTurnIntent.PATTERN_QUESTION ->
+                "I won't invent a pattern from this conversation. Rhythm Memory has the saved local view."
+            AgentTurnIntent.REMINDER_CHANGE ->
+                "I heard the reminder request. Nothing changed—use Reminder settings to choose or confirm the time."
+            AgentTurnIntent.FOLLOW_UP -> if (userPrompt.contains("why", ignoreCase = true)) {
+                "I can reflect what you told me, but I won't guess at why today feels this way."
+            } else {
+                "I'm with you. Say a little more, or tell me you're done."
+            }
+            AgentTurnIntent.END_SESSION -> "All right. I'm here when you want me."
+            AgentTurnIntent.GENERAL ->
+                "I'm here. You can check in with bright, steady, heavy, off, or a number from 1 to 5."
+            AgentTurnIntent.DUPLICATE_CHECK_IN ->
+                "I already have that check-in for this conversation, so I didn't add it twice."
         }
-        AgentTurnIntent.DUPLICATE_CHECK_IN ->
-            "I already have that check-in for this conversation, so I didn't add it twice."
     }
 
     private fun isMemoryRecallQuestion(userPrompt: String): Boolean {
@@ -307,17 +313,32 @@ class DailyCheckInAgent(
             .replace(Regex("[^a-z0-9 ]"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
-        return listOf(
+
+        val explicitRecallLanguage = listOf(
             "what do you remember",
             "what have you remembered",
             "what do you know about me",
             "tell me what you remember",
             "remember about me",
-            "do you remember my",
-            "what helps me",
-            "what calms me",
-            "what usually calms me"
-        ).any(normalized::contains)
+            "do you remember my"
+        )
+        if (explicitRecallLanguage.any(normalized::contains)) return true
+
+        val asksWhat = normalized.startsWith("what ") || normalized.startsWith("which ")
+        val personalSupportLanguage = listOf(
+            "helps me",
+            "helped me",
+            "calms me",
+            "calmed me",
+            "keeps me calm",
+            "kept me calm",
+            "soothes me",
+            "settles me",
+            "comforts me",
+            "grounds me",
+            "works for me"
+        )
+        return asksWhat && personalSupportLanguage.any(normalized::contains)
     }
 
     private fun generateMemoryRecallResponse(

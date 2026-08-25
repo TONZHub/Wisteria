@@ -175,6 +175,47 @@ class DailyCheckInAgentTest {
     }
 
     @Test
+    fun `memory recall recognizes natural support wording`() = runTest {
+        val model = FakeCompanionModelService()
+        val agent = buildAgent(model = model)
+        val memory = AgentMemoryEntity(
+            memoryKey = "conversation_support_music",
+            memoryValue = "quiet music usually keeps me calm",
+            category = "CONVERSATION_SUPPORT"
+        )
+
+        val response = agent.processUserTurn(
+            userPrompt = "What usually keeps me calm?",
+            conversationHistory = emptyList(),
+            rememberedContext = listOf(memory),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(AgentTurnIntent.GENERAL, response.turnIntent)
+        assertTrue(response.text.contains(memory.memoryValue))
+        assertTrue(response.toolInvocations.isEmpty())
+        assertTrue(model.prompts.isEmpty())
+
+        agent.processUserTurn(
+            userPrompt = "4 (Steady)",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+        val followUp = agent.processUserTurn(
+            userPrompt = "What keeps me calm?",
+            conversationHistory = emptyList(),
+            rememberedContext = listOf(memory),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(AgentTurnIntent.FOLLOW_UP, followUp.turnIntent)
+        assertTrue(followUp.text.contains(memory.memoryValue))
+    }
+
+    @Test
     fun `memory recall says when no conversation memories exist`() = runTest {
         val response = buildAgent().processUserTurn(
             userPrompt = "Tell me what you remember",
