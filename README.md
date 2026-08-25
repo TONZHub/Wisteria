@@ -1,5 +1,11 @@
 # Wisteria
 
+## Conversation memory boundary
+
+Wisteria keeps bounded conversation notes locally and can optionally mirror them to Vertex AI Memory Bank through the authenticated service in [`memory-service`](memory-service/README.md). Raw chat is never uploaded by this path. The bridge verifies Firebase Authentication and Firebase App Check, derives the Memory Bank user scope on the server, re-applies the secret/contact/instruction filters, and holds all Google Cloud credentials outside the APK.
+
+Remote recall is treated as untrusted user data and passes through the same agent prompt boundary as local notes. If the bridge is not configured or cannot be reached, Wisteria continues with local memory only.
+
 > A 3-second check-in for days when a full sentence is too much.
 
 [![Android CI](https://github.com/TONZHub/Wisteria/actions/workflows/android-ci.yml/badge.svg)](https://github.com/TONZHub/Wisteria/actions/workflows/android-ci.yml)

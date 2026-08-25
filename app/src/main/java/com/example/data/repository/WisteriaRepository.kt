@@ -4,6 +4,8 @@ import com.example.data.cloud.FirestoreSyncRecord
 import com.example.data.cloud.FirestoreSyncService
 import com.example.data.cloud.FirestoreSyncServiceImpl
 import com.example.data.cloud.LocalNightShiftService
+import com.example.data.cloud.DisabledMemoryBankSyncService
+import com.example.data.cloud.MemoryBankSyncService
 import com.example.data.cloud.NightShiftExecution
 import com.example.data.cloud.NightShiftService
 import com.example.data.local.dao.CheckInDao
@@ -26,7 +28,8 @@ import java.util.Locale
 class WisteriaRepository(
     private val checkInDao: CheckInDao,
     private val firestoreService: FirestoreSyncService = FirestoreSyncServiceImpl(),
-    private val nightShiftService: NightShiftService = LocalNightShiftService()
+    private val nightShiftService: NightShiftService = LocalNightShiftService(),
+    private val memoryBankService: MemoryBankSyncService = DisabledMemoryBankSyncService
 ) {
 
     private val activeTools = listOf(
@@ -58,22 +61,33 @@ class WisteriaRepository(
     fun getAllCareActionsFlow(): Flow<List<CareActionEntity>> = checkInDao.getAllCareActionsFlow()
     fun getAllMemoriesFlow(): Flow<List<AgentMemoryEntity>> = checkInDao.getAllMemoriesFlow()
 
-    suspend fun getConversationMemories(): List<AgentMemoryEntity> =
-        checkInDao.getAllMemoriesFlow().first()
+    suspend fun getConversationMemories(query: String? = null): List<AgentMemoryEntity> {
+        val local = checkInDao.getAllMemoriesFlow().first()
             .filter { it.category.startsWith("CONVERSATION_") }
             .sortedByDescending { it.updatedAt }
             .take(12)
+        val remote = query?.takeIf(String::isNotBlank)?.let {
+            runCatching { memoryBankService.recall(it) }.getOrDefault(emptyList())
+        }.orEmpty()
+        return (local + remote)
+            .distinctBy { it.memoryValue.trim().lowercase() }
+            .take(12)
+    }
 
     suspend fun saveConversationMemory(memory: AgentMemoryEntity) {
         require(memory.category.startsWith("CONVERSATION_"))
         checkInDao.insertMemory(memory)
+        runCatching { memoryBankService.remember(memory) }
     }
 
     suspend fun deleteMemory(key: String) {
+        val memory = checkInDao.getAllMemoriesFlow().first().firstOrNull { it.memoryKey == key }
+        if (memory != null) runCatching { memoryBankService.forget(memory) }
         checkInDao.deleteMemory(key)
     }
 
     suspend fun deleteConversationMemories() {
+        runCatching { memoryBankService.forgetAll() }
         checkInDao.deleteConversationMemories()
     }
 

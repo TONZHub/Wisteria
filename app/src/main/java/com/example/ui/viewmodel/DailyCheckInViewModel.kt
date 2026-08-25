@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.cloud.FirestoreSyncRecord
 import com.example.data.cloud.NightShiftExecution
+import com.example.data.cloud.FirebaseMemoryBankSyncService
 import com.example.data.health.HealthConnectManager
 import com.example.data.reminder.AlarmSchedulePrecision
 import com.example.data.reminder.CheckInReminderManager
@@ -73,7 +74,10 @@ data class CheckInUiState(
 
 class DailyCheckInViewModel(application: Application) : AndroidViewModel(application) {
     private val database = WisteriaDatabase.getInstance(application)
-    private val repository = WisteriaRepository(database.checkInDao())
+    private val repository = WisteriaRepository(
+        database.checkInDao(),
+        memoryBankService = FirebaseMemoryBankSyncService()
+    )
     private val healthManager = HealthConnectManager(application)
     private val reminderManager = CheckInReminderManager(application)
     private val conversationMemoryManager = ConversationMemoryManager(application)
@@ -368,7 +372,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
             try {
                 val healthContext = healthManager.fetchPrivateResponseContext()
                 val rememberedContext = if (conversationMemoryManager.isEnabled()) {
-                    repository.getConversationMemories()
+                    repository.getConversationMemories(userText)
                 } else {
                     emptyList()
                 }
