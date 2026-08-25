@@ -23,3 +23,5 @@ gcloud run deploy wisteria-memory \
 ```
 
 `--allow-unauthenticated` permits the Android HTTP request to reach the service; it does not bypass application authentication. The bridge rejects calls unless both a valid Firebase ID token and App Check token are present.
+
+After deployment, verify the public service boundary with `GET /ready`. Cloud Run reserves/intercepts `/healthz` on some frontends, so Wisteria deliberately avoids that path.
