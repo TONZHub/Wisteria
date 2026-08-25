@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 30
     env:
       FIREBASE_CONFIG_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+      MEMORY_SERVICE_URL: ${{ vars.MEMORY_SERVICE_URL }}
     steps:
       - name: Check out source
         uses: actions/checkout@v6
