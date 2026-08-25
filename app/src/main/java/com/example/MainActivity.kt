@@ -1,6 +1,7 @@
 package com.example
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.content.pm.PackageManager
@@ -32,9 +33,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
-import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
+import androidx.credentials.exceptions.GetCredentialUnsupportedException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.content.ContextCompat
@@ -52,7 +56,6 @@ import com.example.ui.viewmodel.DailyCheckInViewModel
 import com.example.ui.viewmodel.ThemeMode
 import com.example.domain.export.CheckInExportFormatter
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 
@@ -65,6 +68,37 @@ enum class WisteriaTab(val title: String, val icon: androidx.compose.ui.graphics
 private enum class VoiceStartAction {
     DICTATION,
     CALL
+}
+
+private fun Context.configuredGoogleWebClientId(): String? {
+    val resourceId = resources.getIdentifier(
+        "default_web_client_id",
+        "string",
+        packageName
+    )
+    if (resourceId == 0) return null
+
+    return getString(resourceId)
+        .trim()
+        .takeIf { it.endsWith(".apps.googleusercontent.com") }
+}
+
+private fun googleCredentialFailureMessage(error: GetCredentialException): String = when (error) {
+    is NoCredentialException ->
+        "Google couldn't offer an account. Check your Google account in Android Settings, then try again."
+    is GetCredentialCancellationException ->
+        "Google sign-in didn't complete. Nothing changed."
+    is GetCredentialProviderConfigurationException ->
+        "Google's credential provider isn't available in this build. Continue privately still works."
+    is GetCredentialUnsupportedException ->
+        "Google sign-in isn't supported by this device's credential provider. Continue privately still works."
+    else -> {
+        val diagnostic = error.message
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?: error.type.substringAfterLast('.')
+        "Google sign-in couldn't complete: $diagnostic"
+    }
 }
 
 class MainActivity : ComponentActivity() {
@@ -229,7 +263,13 @@ fun WisteriaMainApp(
         val onSignInWithGoogle: () -> Unit = {
             scope.launch {
                 val credentialManager = CredentialManager.create(context)
-                val webClientId = "635342872362-5i3f5hjvtogukt0l3f27cv981r1f3hvo.apps.googleusercontent.com"
+                val webClientId = context.configuredGoogleWebClientId()
+                if (webClientId == null) {
+                    viewModel.setStatusMessage(
+                        "Google sign-in isn't configured in this APK. Continue privately still works."
+                    )
+                    return@launch
+                }
                 
                 val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = webClientId)
                     .build()
@@ -239,36 +279,13 @@ fun WisteriaMainApp(
                     .build()
 
                 try {
-                    val result = try {
-                        credentialManager.getCredential(
-                            request = buttonRequest,
-                            context = context,
-                        )
-                    } catch (firstError: GetCredentialException) {
-                        Log.w(
-                            "Wisteria",
-                            "Primary Google account flow failed; retrying with account chooser",
-                            firstError
-                        )
-                        runCatching {
-                            credentialManager.clearCredentialState(ClearCredentialStateRequest())
-                        }.onFailure { clearError ->
-                            Log.w("Wisteria", "Could not clear stale credential state", clearError)
-                        }
-
-                        val accountChooserOption = GetGoogleIdOption.Builder()
-                            .setServerClientId(webClientId)
-                            .setFilterByAuthorizedAccounts(false)
-                            .setAutoSelectEnabled(false)
-                            .build()
-                        val accountChooserRequest = GetCredentialRequest.Builder()
-                            .addCredentialOption(accountChooserOption)
-                            .build()
-                        credentialManager.getCredential(
-                            request = accountChooserRequest,
-                            context = context,
-                        )
-                    }
+                    // This is an explicit button flow. Unlike the bottom-sheet option, it can
+                    // offer account reauthentication or adding an account when needed. Do not
+                    // clear state and silently replace its real error with a second failure.
+                    val result = credentialManager.getCredential(
+                        request = buttonRequest,
+                        context = context,
+                    )
                     val credential = result.credential
                     
                     if (credential is androidx.credentials.CustomCredential && 
@@ -279,8 +296,12 @@ fun WisteriaMainApp(
                         viewModel.setStatusMessage("Unexpected credential type: ${credential.type}")
                     }
                 } catch (e: GetCredentialException) {
-                    Log.e("Wisteria", "Google Sign-In failed", e)
-                    viewModel.setStatusMessage("Sign-in error: ${e.message ?: "check Web Client ID and SHA-1"}")
+                    Log.e(
+                        "Wisteria",
+                        "Google Sign-In failed: type=${e.type}, message=${e.message}",
+                        e
+                    )
+                    viewModel.setStatusMessage(googleCredentialFailureMessage(e))
                 } catch (e: Exception) {
                     Log.e("Wisteria", "Unexpected Sign-In error", e)
                     viewModel.setStatusMessage("Error: ${e.message ?: "unknown"}")
