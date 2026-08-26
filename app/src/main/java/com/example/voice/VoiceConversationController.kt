@@ -2,6 +2,7 @@ package com.example.voice
 
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -12,24 +13,35 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import androidx.annotation.MainThread
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Locale
 import java.util.UUID
 
 /**
- * Owns one-turn speech recognition and device text-to-speech.
+ * Owns one-turn speech recognition and Wisteria voice playback.
  *
- * Hands-free mode deliberately alternates between finite listen and speak turns. Android's
- * SpeechRecognizer is not designed to keep an open microphone stream running indefinitely.
+ * Inworld speech is fetched through Wisteria's authenticated backend bridge. Android's local
+ * TextToSpeech remains a fallback so voice mode can keep working if the provider is unavailable.
+ * Hands-free mode deliberately alternates between finite listen and speak turns.
  */
 class VoiceConversationController(
     private val applicationContext: android.content.Context,
+    private val remoteTts: InworldTtsService = InworldTtsService(),
     private val onTranscriptReady: (String) -> Unit
 ) : RecognitionListener {
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val voiceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val recognitionAvailable = SpeechRecognizer.isRecognitionAvailable(applicationContext)
     private val onDeviceRecognitionAvailable =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -46,16 +58,21 @@ class VoiceConversationController(
     private var speechRecognizer: SpeechRecognizer? = null
     private var textToSpeech: TextToSpeech? = null
     private var textToSpeechInitializing = false
+    private var mediaPlayer: MediaPlayer? = null
+    private var remoteSpeechJob: Job? = null
+    private var remoteAudioFile: File? = null
     private var recognitionInProgress = false
     private var suppressNextRecognitionError = false
     private var voiceTurnAwaitingResponse = false
-    private var pendingSpeech: String? = null
+    private var pendingFallbackSpeech: String? = null
     private var shouldEndCallAfterSpeech = false
 
     fun startDictation() = onMain {
         if (_state.value.isCallActive) return@onMain
         voiceTurnAwaitingResponse = false
         shouldEndCallAfterSpeech = false
+        stopRemoteSpeech()
+        textToSpeech?.stop()
         _state.update {
             it.copy(
                 phase = VoicePhase.IDLE,
@@ -70,6 +87,7 @@ class VoiceConversationController(
 
     fun startCall(handsFree: Boolean = true) = onMain {
         cancelListeningInternal()
+        stopRemoteSpeech()
         textToSpeech?.stop()
         voiceTurnAwaitingResponse = false
         shouldEndCallAfterSpeech = false
@@ -89,8 +107,9 @@ class VoiceConversationController(
 
     fun endCall() = onMain {
         cancelListeningInternal()
+        stopRemoteSpeech()
         textToSpeech?.stop()
-        pendingSpeech = null
+        pendingFallbackSpeech = null
         voiceTurnAwaitingResponse = false
         shouldEndCallAfterSpeech = false
         _state.update {
@@ -110,7 +129,9 @@ class VoiceConversationController(
             VoicePhase.LISTENING -> stopListeningInternal()
             VoicePhase.PROCESSING -> Unit
             VoicePhase.SPEAKING -> {
+                stopRemoteSpeech()
                 textToSpeech?.stop()
+                pendingFallbackSpeech = null
                 finishAgentSpeech(resumeHandsFree = false)
                 startListeningInternal()
             }
@@ -159,7 +180,9 @@ class VoiceConversationController(
         val enabled = !_state.value.isSpeakerEnabled
         _state.update { it.copy(isSpeakerEnabled = enabled) }
         if (!enabled && _state.value.phase == VoicePhase.SPEAKING) {
+            stopRemoteSpeech()
             textToSpeech?.stop()
+            pendingFallbackSpeech = null
             finishAgentSpeech(resumeHandsFree = true)
         }
     }
@@ -171,11 +194,7 @@ class VoiceConversationController(
         _state.update { it.copy(lastAgentText = text, errorMessage = null) }
 
         if (_state.value.isSpeakerEnabled) {
-            pendingSpeech = text
-            ensureTextToSpeech()
-            if (_state.value.isTextToSpeechReady) {
-                speakPendingText()
-            }
+            speakWithWisteriaVoice(text)
         } else {
             finishAgentSpeech(resumeHandsFree = true)
         }
@@ -194,6 +213,9 @@ class VoiceConversationController(
 
     fun destroy() = onMain {
         mainHandler.removeCallbacksAndMessages(null)
+        cancelListeningInternal()
+        stopRemoteSpeech()
+        voiceScope.cancel()
         speechRecognizer?.destroy()
         speechRecognizer = null
         textToSpeech?.stop()
@@ -215,7 +237,9 @@ class VoiceConversationController(
         }
 
         if (_state.value.phase == VoicePhase.SPEAKING) {
+            stopRemoteSpeech()
             textToSpeech?.stop()
+            pendingFallbackSpeech = null
         }
 
         val recognizer = speechRecognizer ?: createSpeechRecognizer() ?: return
@@ -295,6 +319,112 @@ class VoiceConversationController(
     }
 
     @MainThread
+    private fun speakWithWisteriaVoice(text: String) {
+        val normalized = text.trim().take(2_000)
+        if (normalized.isBlank()) {
+            finishAgentSpeech(resumeHandsFree = true)
+            return
+        }
+
+        stopRemoteSpeech()
+        textToSpeech?.stop()
+        pendingFallbackSpeech = null
+        _state.update { it.copy(phase = VoicePhase.PROCESSING, errorMessage = null) }
+
+        remoteSpeechJob = voiceScope.launch {
+            val audio = runCatching { remoteTts.synthesize(normalized) }.getOrNull()
+            if (!_state.value.isSpeakerEnabled) {
+                finishAgentSpeech(resumeHandsFree = true)
+                return@launch
+            }
+
+            if (audio.isNullOrEmpty()) {
+                speakWithDeviceTts(normalized)
+                return@launch
+            }
+
+            val file = runCatching {
+                withContext(Dispatchers.IO) {
+                    File.createTempFile("wisteria-voice-", ".wav", applicationContext.cacheDir)
+                        .also { it.writeBytes(audio) }
+                }
+            }.getOrNull()
+
+            if (file == null) {
+                speakWithDeviceTts(normalized)
+                return@launch
+            }
+
+            playRemoteAudio(file, normalized)
+        }
+    }
+
+    @MainThread
+    private fun playRemoteAudio(file: File, fallbackText: String) {
+        releaseRemotePlayer()
+        remoteAudioFile = file
+
+        val player = MediaPlayer()
+        mediaPlayer = player
+        runCatching {
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            player.setDataSource(file.absolutePath)
+            player.setOnPreparedListener { prepared ->
+                onMain {
+                    if (!_state.value.isSpeakerEnabled) {
+                        releaseRemotePlayer()
+                        finishAgentSpeech(resumeHandsFree = true)
+                    } else {
+                        _state.update { it.copy(phase = VoicePhase.SPEAKING, errorMessage = null) }
+                        prepared.start()
+                    }
+                }
+            }
+            player.setOnCompletionListener {
+                onMain {
+                    releaseRemotePlayer()
+                    finishAgentSpeech(resumeHandsFree = true)
+                }
+            }
+            player.setOnErrorListener { _, _, _ ->
+                onMain {
+                    releaseRemotePlayer()
+                    speakWithDeviceTts(fallbackText)
+                }
+                true
+            }
+            player.prepareAsync()
+        }.onFailure {
+            releaseRemotePlayer()
+            speakWithDeviceTts(fallbackText)
+        }
+    }
+
+    @MainThread
+    private fun stopRemoteSpeech() {
+        remoteSpeechJob?.cancel()
+        remoteSpeechJob = null
+        releaseRemotePlayer()
+    }
+
+    @MainThread
+    private fun releaseRemotePlayer() {
+        val player = mediaPlayer
+        mediaPlayer = null
+        if (player != null) {
+            runCatching { player.stop() }
+            runCatching { player.release() }
+        }
+        remoteAudioFile?.let { file -> runCatching { file.delete() } }
+        remoteAudioFile = null
+    }
+
+    @MainThread
     private fun ensureTextToSpeech() {
         if (_state.value.isTextToSpeechReady || textToSpeechInitializing) return
         textToSpeechInitializing = true
@@ -302,7 +432,7 @@ class VoiceConversationController(
             onMain {
                 textToSpeechInitializing = false
                 if (status != TextToSpeech.SUCCESS) {
-                    pendingSpeech = null
+                    pendingFallbackSpeech = null
                     _state.update {
                         it.copy(
                             phase = VoicePhase.ERROR,
@@ -319,7 +449,7 @@ class VoiceConversationController(
                         languageResult != TextToSpeech.LANG_NOT_SUPPORTED
 
                 if (!languageSupported) {
-                    pendingSpeech = null
+                    pendingFallbackSpeech = null
                     _state.update {
                         it.copy(
                             phase = VoicePhase.ERROR,
@@ -359,16 +489,21 @@ class VoiceConversationController(
                 })
 
                 _state.update { it.copy(isTextToSpeechReady = true) }
-                speakPendingText()
+                pendingFallbackSpeech?.let(::speakWithDeviceTts)
             }
         }
     }
 
     @MainThread
-    private fun speakPendingText() {
-        val text = pendingSpeech?.takeIf { it.isNotBlank() } ?: return
-        val engine = textToSpeech ?: return
-        pendingSpeech = null
+    private fun speakWithDeviceTts(text: String) {
+        val engine = textToSpeech
+        if (!_state.value.isTextToSpeechReady || engine == null) {
+            pendingFallbackSpeech = text
+            ensureTextToSpeech()
+            return
+        }
+
+        pendingFallbackSpeech = null
         _state.update { it.copy(phase = VoicePhase.SPEAKING, errorMessage = null) }
         val result = engine.speak(
             text,
