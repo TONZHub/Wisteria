@@ -76,7 +76,7 @@ def synthesize_speech(
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=25) as upstream:
+        with urllib.request.urlopen(request, timeout=50) as upstream:
             response_body = upstream.read()
     except urllib.error.HTTPError as exc:
         # Never forward provider response bodies because they may contain diagnostics
