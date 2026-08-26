@@ -52,6 +52,7 @@ class CheckInReminderReceiver : BroadcastReceiver() {
         createNotificationChannel(notificationManager)
 
         val alarmIntent = Intent(context, com.example.MainActivity::class.java).apply {
+            action = ACTION_FIRE_DAILY
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(com.example.MainActivity.EXTRA_TRIGGER_TAKEOVER, true)
         }
@@ -66,7 +67,7 @@ class CheckInReminderReceiver : BroadcastReceiver() {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_wisteria_notification)
-            .setContentTitle("Wisteria check-in")
+            .setContentTitle("Wisteria check-in alarm")
             .setContentText("Your 3-second check-in is ready.")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)

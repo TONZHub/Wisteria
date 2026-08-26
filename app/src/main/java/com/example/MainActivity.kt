@@ -8,6 +8,7 @@ import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -109,14 +110,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Log.d("Wisteria", "MainActivity: onCreate")
 
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
         } else {
             @Suppress("DEPRECATION")
             window.addFlags(
-                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
         }
 
@@ -127,12 +129,12 @@ class MainActivity : ComponentActivity() {
         
         val triggerTakeover = intent.getBooleanExtra(EXTRA_TRIGGER_TAKEOVER, false)
         Log.d("Wisteria", "MainActivity: triggerTakeover=$triggerTakeover")
-        if (triggerTakeover) {
-            viewModel.openFullScreenTakeover()
-        }
         
         setContent {
-            WisteriaMainApp(viewModel = viewModel)
+            WisteriaMainApp(
+                viewModel = viewModel,
+                startWithTakeover = triggerTakeover
+            )
         }
     }
 
