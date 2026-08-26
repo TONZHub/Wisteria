@@ -33,6 +33,30 @@ class AgentTurnRouterTest {
     }
 
     @Test
+    fun `spoken contractions can end the conversation`() {
+        val activeSession = AgentSessionState(
+            currentPulse = DailyPulseData(texture = DailyTexture.OFF, isOffDay = true)
+        )
+
+        assertEquals(
+            AgentTurnIntent.END_SESSION,
+            router.route("I'm done", activeSession).intent
+        )
+        assertEquals(
+            AgentTurnIntent.END_SESSION,
+            router.route("I’m done.", activeSession).intent
+        )
+        assertEquals(
+            AgentTurnIntent.END_SESSION,
+            router.route("That's all", activeSession).intent
+        )
+        assertEquals(
+            AgentTurnIntent.END_SESSION,
+            router.route("That’s all.", activeSession).intent
+        )
+    }
+
+    @Test
     fun `a number inside a reminder request is not a rating`() {
         assertEquals(
             AgentTurnIntent.REMINDER_CHANGE,
