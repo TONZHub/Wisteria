@@ -50,6 +50,10 @@ class AgentTurnRouterTest {
             AgentTurnIntent.END_SESSION,
             router.route("That's all", activeSession).intent
         )
+        assertEquals(
+            AgentTurnIntent.END_SESSION,
+            router.route("That’s all.", activeSession).intent
+        )
     }
 
     @Test
