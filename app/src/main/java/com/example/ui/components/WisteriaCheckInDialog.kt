@@ -77,199 +77,213 @@ fun FullScreenCheckInDialog(
             dismissOnClickOutside = false
         )
     ) {
-        val colorScheme = MaterialTheme.colorScheme
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            colorScheme.background,
-                            colorScheme.primaryContainer.copy(alpha = 0.85f),
-                            colorScheme.secondaryContainer.copy(alpha = 0.9f),
-                            colorScheme.background
-                        )
+        CheckInTakeoverContent(
+            isOffDay = isOffDay,
+            onDismiss = onDismiss,
+            onSubmitInput = onSubmitInput
+        )
+    }
+}
+
+@Composable
+fun CheckInTakeoverContent(
+    isOffDay: Boolean = false,
+    onDismiss: () -> Unit,
+    onSubmitInput: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        colorScheme.background,
+                        colorScheme.primaryContainer.copy(alpha = 0.85f),
+                        colorScheme.secondaryContainer.copy(alpha = 0.9f),
+                        colorScheme.background
                     )
                 )
-                .padding(24.dp)
-                .testTag("fullscreen_checkin_dialog"),
-            contentAlignment = Alignment.Center
+            )
+            .padding(24.dp)
+            .testTag("fullscreen_checkin_dialog"),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Cascading Wisteria flower motif header
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(colorScheme.primary, colorScheme.secondary)
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Spa,
-                        contentDescription = "Wisteria Cascading Motif",
-                        tint = colorScheme.onPrimary,
-                        modifier = Modifier.size(34.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Wisteria",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        color = colorScheme.onBackground,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                )
-
-                Text(
-                    text = "Full-screen daily check-in • 3 seconds max",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = colorScheme.tertiary,
-                        letterSpacing = 0.5.sp
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = colorScheme.surface.copy(alpha = 0.94f)
+            // Cascading Wisteria flower motif header
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(colorScheme.primary, colorScheme.secondary)
+                        )
                     ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.3f))
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Spa,
+                    contentDescription = "Wisteria Cascading Motif",
+                    tint = colorScheme.onPrimary,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Wisteria",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    color = colorScheme.onBackground,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
+                )
+            )
+
+            Text(
+                text = "Full-screen daily check-in • 3 seconds max",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = colorScheme.tertiary,
+                    letterSpacing = 0.5.sp
+                )
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = colorScheme.surface.copy(alpha = 0.94f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.3f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Text(
+                        text = if (isOffDay)
+                            "Last time felt off. How is today?"
+                        else
+                            "How are you feeling today?",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Single tap 1-5 rating buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Text(
-                            text = if (isOffDay)
-                                "Last time felt off. How is today?"
-                            else
-                                "How are you feeling today?",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                color = colorScheme.onSurface,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center
-                            )
+                        data class RatingOption(val num: Int, val icon: ImageVector, val desc: String)
+                        val options = listOf(
+                            RatingOption(1, Icons.Default.Bolt, "Off"),
+                            RatingOption(2, Icons.Default.Cloud, "Heavy"),
+                            RatingOption(3, Icons.Default.Eco, "Steady"),
+                            RatingOption(4, Icons.Default.AutoAwesome, "Clear"),
+                            RatingOption(5, Icons.Default.Favorite, "Bright")
                         )
 
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // Single tap 1-5 rating buttons
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            data class RatingOption(val num: Int, val icon: ImageVector, val desc: String)
-                            val options = listOf(
-                                RatingOption(1, Icons.Default.Bolt, "Off"),
-                                RatingOption(2, Icons.Default.Cloud, "Heavy"),
-                                RatingOption(3, Icons.Default.Eco, "Steady"),
-                                RatingOption(4, Icons.Default.AutoAwesome, "Clear"),
-                                RatingOption(5, Icons.Default.Favorite, "Bright")
-                            )
-
-                            options.forEach { (num, icon, desc) ->
-                                val optionColor = if (num <= 2) OffCoral else ForestGreenAccent
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .clickable {
-                                            onSubmitInput("$num ($desc)")
-                                        }
-                                        .background(optionColor.copy(alpha = if (num <= 2) 0.15f else 0.2f))
-                                        .padding(vertical = 12.dp, horizontal = 10.dp)
-                                        .testTag("tap_option_$num")
-                                ) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = desc,
-                                        tint = optionColor,
-                                        modifier = Modifier.size(22.dp)
+                        options.forEach { (num, icon, desc) ->
+                            val optionColor = if (num <= 2) OffCoral else ForestGreenAccent
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable {
+                                        onSubmitInput("$num ($desc)")
+                                    }
+                                    .background(optionColor.copy(alpha = if (num <= 2) 0.15f else 0.2f))
+                                    .padding(vertical = 12.dp, horizontal = 10.dp)
+                                    .testTag("tap_option_$num")
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = desc,
+                                    tint = optionColor,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = num.toString(),
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        color = colorScheme.onSurface,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = num.toString(),
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            color = colorScheme.onSurface,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                }
+                                )
                             }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                        // Quick single-word quick pill triggers
-                        Text(
-                            text = "Or tap a quick texture signal:",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = colorScheme.onSurfaceVariant
-                            )
+                    // Quick single-word quick pill triggers
+                    Text(
+                        text = "Or tap a quick texture signal:",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colorScheme.onSurfaceVariant
                         )
+                    )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            QuickPill(
-                                text = "Heavy",
-                                color = HeavyRose,
-                                onClick = { onSubmitInput("Today feels heavy") }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            QuickPill(
-                                text = "Off",
-                                color = OffCoral,
-                                onClick = { onSubmitInput("I feel off") }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            QuickPill(
-                                text = "Bright",
-                                color = ForestGreenMint,
-                                onClick = { onSubmitInput("Feeling bright and clear") }
-                            )
-                        }
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        QuickPill(
+                            text = "Heavy",
+                            color = HeavyRose,
+                            onClick = { onSubmitInput("Today feels heavy") }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        QuickPill(
+                            text = "Off",
+                            color = OffCoral,
+                            onClick = { onSubmitInput("I feel off") }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        QuickPill(
+                            text = "Bright",
+                            color = ForestGreenMint,
+                            onClick = { onSubmitInput("Feeling bright and clear") }
+                        )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-                // Always-visible, honest way out — this is a nudge, not a trap.
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.testTag("dismiss_takeover_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = null,
-                        tint = colorScheme.onBackground.copy(alpha = 0.8f),
-                        modifier = Modifier.size(18.dp)
+            // Always-visible, honest way out — this is a nudge, not a trap.
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("dismiss_takeover_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    tint = colorScheme.onBackground.copy(alpha = 0.8f),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Not now",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = colorScheme.onBackground.copy(alpha = 0.8f)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Not now",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            color = colorScheme.onBackground.copy(alpha = 0.8f)
-                        )
-                    )
-                }
+                )
             }
         }
     }

@@ -50,6 +50,8 @@ import com.example.ui.screens.DailySummaryScreen
 import com.example.ui.screens.RhythmMemoryScreen
 import com.example.ui.screens.SupportScreen
 import com.example.ui.screens.VoiceCallScreen
+import com.example.data.reminder.CheckInReminderManager
+import com.example.ui.components.CheckInTakeoverContent
 import com.example.ui.components.FullScreenCheckInDialog
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.MyApplicationTheme
@@ -107,20 +109,25 @@ class MainActivity : ComponentActivity() {
     private lateinit var viewModel: DailyCheckInViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        Log.d("Wisteria", "MainActivity: onCreate")
-
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        Log.d("Wisteria", "MainActivity: onCreate pre-super")
+        
+        // This MUST be called before super.onCreate and before any content is set
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            )
         }
+        
+        // Ensure the activity can show over the keyguard and wake the screen
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+        )
+        
+        super.onCreate(savedInstanceState)
+        Log.d("Wisteria", "MainActivity: onCreate post-super")
 
         configureFirebaseAppCheck(this)
         enableEdgeToEdge()
@@ -128,7 +135,12 @@ class MainActivity : ComponentActivity() {
         viewModel = androidx.lifecycle.ViewModelProvider(this)[DailyCheckInViewModel::class.java]
         
         val triggerTakeover = intent.getBooleanExtra(EXTRA_TRIGGER_TAKEOVER, false)
-        Log.d("Wisteria", "MainActivity: triggerTakeover=$triggerTakeover")
+        Log.d("Wisteria", "MainActivity: triggerTakeover=$triggerTakeover, action=${intent.action}")
+        
+        if (triggerTakeover) {
+            CheckInReminderManager(this).dismissActiveAlarm()
+            viewModel.openFullScreenTakeover()
+        }
         
         setContent {
             WisteriaMainApp(
@@ -142,15 +154,20 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         val triggerTakeover = intent.getBooleanExtra(EXTRA_TRIGGER_TAKEOVER, false)
-        Log.d("Wisteria", "MainActivity: onNewIntent, triggerTakeover=$triggerTakeover")
+        Log.d("Wisteria", "MainActivity: onNewIntent, triggerTakeover=$triggerTakeover, action=${intent.action}")
         if (triggerTakeover) {
+            CheckInReminderManager(this).dismissActiveAlarm()
             viewModel.openFullScreenTakeover()
         }
     }
 
     override fun onResume() {
         super.onResume()
+        Log.d("Wisteria", "MainActivity: onResume, triggerTakeover=${intent.getBooleanExtra(EXTRA_TRIGGER_TAKEOVER, false)}")
         if (::viewModel.isInitialized) {
+            if (intent.getBooleanExtra(EXTRA_TRIGGER_TAKEOVER, false)) {
+                viewModel.openFullScreenTakeover()
+            }
             // Reschedule with exact timing as soon as the person returns from system settings.
             viewModel.refreshReminderState(rescheduleIfEnabled = true)
         }
@@ -178,6 +195,7 @@ fun WisteriaMainApp(
     }
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
+    Log.d("Wisteria", "WisteriaMainApp: isFullScreenTakeoverActive=${uiState.isFullScreenTakeoverActive}")
     val voiceState by viewModel.voiceState.collectAsState()
     
     val isDark = when (uiState.themeMode) {
@@ -191,14 +209,6 @@ fun WisteriaMainApp(
         val allCheckIns by viewModel.allCheckIns.collectAsState()
         val careActions by viewModel.careActions.collectAsState()
         val memories by viewModel.agentMemories.collectAsState()
-
-        // Full-screen takeover at the top level so it shows over any tab
-        FullScreenCheckInDialog(
-            isOpen = uiState.isFullScreenTakeoverActive,
-            isOffDay = uiState.latestPulse.isOffDay,
-            onDismiss = { viewModel.closeFullScreenTakeover() },
-            onSubmitInput = viewModel::submitSingleInputCheckIn
-        )
 
         var currentTab by remember { mutableStateOf(WisteriaTab.DAILY_PULSE) }
         var showInfoDialog by remember { mutableStateOf(false) }
@@ -708,6 +718,15 @@ fun WisteriaMainApp(
                 onToggleMicMuted = { viewModel.toggleVoiceMicMuted() },
                 onToggleSpeaker = { viewModel.toggleVoiceSpeaker() },
                 onEndCall = { viewModel.endVoiceCall() }
+            )
+        }
+
+        // Full-screen takeover as the absolute top-most layer
+        if (uiState.isFullScreenTakeoverActive) {
+            CheckInTakeoverContent(
+                isOffDay = uiState.latestPulse.isOffDay,
+                onDismiss = { viewModel.closeFullScreenTakeover() },
+                onSubmitInput = viewModel::submitSingleInputCheckIn
             )
         }
     }

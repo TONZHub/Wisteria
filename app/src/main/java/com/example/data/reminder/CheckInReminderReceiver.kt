@@ -47,6 +47,7 @@ class CheckInReminderReceiver : BroadcastReceiver() {
         context: Context,
         reminderManager: CheckInReminderManager
     ) {
+        Log.d("Wisteria", "showAlarmNotification: Showing alarm notification")
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel(notificationManager)
@@ -71,14 +72,19 @@ class CheckInReminderReceiver : BroadcastReceiver() {
             .setContentText("Your 3-second check-in is ready.")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setDefaults(android.app.Notification.DEFAULT_ALL)
+            .setSound(Settings.System.DEFAULT_ALARM_ALERT_URI)
+            .setVibrate(longArrayOf(0, 500, 200, 500))
             .setContentIntent(alarmPendingIntent)
             .addAction(R.drawable.ic_wisteria_notification, "Snooze 10 min", snoozePendingIntent)
             .addAction(R.drawable.ic_wisteria_notification, "Dismiss", dismissPendingIntent)
-            .setOngoing(true)
+            .setOngoing(false)
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
-        if (reminderManager.canUseFullScreenIntent()) {
+        val canUseFullScreen = reminderManager.canUseFullScreenIntent()
+        Log.d("Wisteria", "showAlarmNotification: canUseFullScreen=$canUseFullScreen")
+        if (canUseFullScreen) {
             builder.setFullScreenIntent(alarmPendingIntent, true)
         }
 
@@ -121,7 +127,7 @@ class CheckInReminderReceiver : BroadcastReceiver() {
         const val ACTION_SNOOZE = "com.zoeb.wisteria.action.SNOOZE_CHECK_IN_ALARM"
         const val ACTION_DISMISS = "com.zoeb.wisteria.action.DISMISS_CHECK_IN_ALARM"
 
-        private const val CHANNEL_ID = "check_in_alarm_v2"
+        private const val CHANNEL_ID = "check_in_reminder_v10"
         private const val ALARM_ACTIVITY_REQUEST_CODE = 1101
         private const val SNOOZE_ACTION_REQUEST_CODE = 1102
         private const val DISMISS_ACTION_REQUEST_CODE = 1103

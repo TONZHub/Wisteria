@@ -130,9 +130,13 @@ class CheckInReminderManager(
         }
     }
 
-    fun canUseFullScreenIntent(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+    fun canUseFullScreenIntent(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             notificationManager.canUseFullScreenIntent()
+        } else {
+            true
+        }
+    }
 
     private fun hasNotificationAccess(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||

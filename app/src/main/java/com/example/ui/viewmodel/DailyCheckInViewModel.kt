@@ -354,10 +354,12 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun openFullScreenTakeover() {
+        android.util.Log.d("Wisteria", "DailyCheckInViewModel: openFullScreenTakeover called")
         _uiState.value = _uiState.value.copy(isFullScreenTakeoverActive = true)
     }
 
     fun closeFullScreenTakeover() {
+        android.util.Log.d("Wisteria", "DailyCheckInViewModel: closeFullScreenTakeover called")
         _uiState.value = _uiState.value.copy(isFullScreenTakeoverActive = false)
     }
 
