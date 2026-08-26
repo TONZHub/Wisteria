@@ -1,6 +1,5 @@
 package com.example
 
-import android.app.KeyguardManager
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -54,23 +53,6 @@ class CheckInAlarmActivity : ComponentActivity() {
     }
 
     private fun startCheckIn() {
-        val keyguardManager = getSystemService(KeyguardManager::class.java)
-        if (!keyguardManager.isKeyguardLocked) {
-            launchCheckIn()
-            return
-        }
-
-        keyguardManager.requestDismissKeyguard(
-            this,
-            object : KeyguardManager.KeyguardDismissCallback() {
-                override fun onDismissSucceeded() {
-                    launchCheckIn()
-                }
-            }
-        )
-    }
-
-    private fun launchCheckIn() {
         reminderManager.dismissActiveAlarm()
         startActivity(
             Intent(this, MainActivity::class.java).apply {
