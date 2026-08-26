@@ -28,8 +28,8 @@ class InworldTtsService(
             val connection = URI("$baseUrl/v1/tts").toURL().openConnection() as HttpURLConnection
             try {
                 connection.requestMethod = "POST"
-                connection.connectTimeout = 8_000
-                connection.readTimeout = 30_000
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 60_000
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json")
                 connection.setRequestProperty("Accept", "audio/wav")
