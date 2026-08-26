@@ -12,4 +12,4 @@ COPY app ./app
 RUN useradd --create-home --uid 10001 wisteria
 USER 10001
 
-CMD exec gunicorn --bind :${PORT} --workers 1 --threads 8 --timeout 60 app.server:app --worker-class uvicorn.workers.UvicornWorker
+CMD exec gunicorn --bind :${PORT} --workers 1 --threads 8 --timeout 60 app.main:app --worker-class uvicorn.workers.UvicornWorker
