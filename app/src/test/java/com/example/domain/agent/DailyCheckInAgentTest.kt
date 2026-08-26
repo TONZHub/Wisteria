@@ -344,6 +344,29 @@ class DailyCheckInAgentTest {
     }
 
     @Test
+    fun `im done closes an active voice-style conversation without repeating the prompt`() = runTest {
+        val model = FakeCompanionModelService()
+        val agent = buildAgent(model = model)
+
+        agent.processUserTurn(
+            userPrompt = "I feel off",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+        val ending = agent.processUserTurn(
+            userPrompt = "I'm done",
+            conversationHistory = emptyList(),
+            onStateChange = { _, _ -> },
+            onToolExecuted = { }
+        )
+
+        assertEquals(AgentTurnIntent.END_SESSION, ending.turnIntent)
+        assertEquals("All right. I'm here when you want me.", ending.text)
+        assertEquals(1, model.endedSessions)
+    }
+
+    @Test
     fun `pattern and reminder questions are read-only turns`() = runTest {
         val recorded = mutableListOf<DailyPulseData>()
         val agent = buildAgent(recordedPulses = recorded)

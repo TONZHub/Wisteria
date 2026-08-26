@@ -84,6 +84,10 @@ class AgentTurnRouter {
     fun normalize(value: String): String = value
         .lowercase(Locale.US)
         .trim()
+        // Keep contractions aligned with the phrase lists below: "I'm" -> "im",
+        // "that's" -> "thats". Replacing apostrophes with spaces would turn them
+        // into "i m" and "that s", which breaks ordinary spoken exit phrases.
+        .replace(Regex("['’‘]"), "")
         .replace(Regex("[^a-z0-9]+"), " ")
         .trim()
 
