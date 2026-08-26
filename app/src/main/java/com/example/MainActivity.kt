@@ -1,6 +1,7 @@
 package com.example
 
 import android.Manifest
+import android.os.Build
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -107,6 +108,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d("Wisteria", "MainActivity: onCreate")
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
+        }
 
         configureFirebaseAppCheck(this)
         enableEdgeToEdge()

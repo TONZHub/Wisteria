@@ -11,7 +11,6 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.example.CheckInAlarmActivity
 import com.example.R
 
 class CheckInReminderReceiver : BroadcastReceiver() {
@@ -52,8 +51,9 @@ class CheckInReminderReceiver : BroadcastReceiver() {
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel(notificationManager)
 
-        val alarmIntent = Intent(context, CheckInAlarmActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val alarmIntent = Intent(context, com.example.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(com.example.MainActivity.EXTRA_TRIGGER_TAKEOVER, true)
         }
         val alarmPendingIntent = PendingIntent.getActivity(
             context,
@@ -66,7 +66,7 @@ class CheckInReminderReceiver : BroadcastReceiver() {
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_wisteria_notification)
-            .setContentTitle("Wisteria check-in alarm")
+            .setContentTitle("Wisteria check-in")
             .setContentText("Your 3-second check-in is ready.")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -74,7 +74,7 @@ class CheckInReminderReceiver : BroadcastReceiver() {
             .addAction(R.drawable.ic_wisteria_notification, "Snooze 10 min", snoozePendingIntent)
             .addAction(R.drawable.ic_wisteria_notification, "Dismiss", dismissPendingIntent)
             .setOngoing(true)
-            .setAutoCancel(false)
+            .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 
         if (reminderManager.canUseFullScreenIntent()) {
