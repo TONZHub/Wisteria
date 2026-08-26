@@ -92,6 +92,7 @@ fun CheckInTakeoverContent(
     onSubmitInput: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    android.util.Log.d("Wisteria", "CheckInTakeoverContent: composing, isOffDay=$isOffDay")
     val colorScheme = MaterialTheme.colorScheme
     Box(
         modifier = modifier

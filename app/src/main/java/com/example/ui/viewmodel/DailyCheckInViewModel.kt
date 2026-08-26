@@ -601,11 +601,11 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
                         _uiState.value = _uiState.value.copy(agentStatusMessage = "Ready for a check-in")
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 val errorMessage = if (e is kotlinx.coroutines.TimeoutCancellationException) {
                     "Sync timed out. Check your internet connection."
                 } else {
-                    "Firestore sync failed: ${e.message ?: "check your network or Firebase rules"}"
+                    "Firestore sync failed: ${e.localizedMessage ?: "check your network or Firebase rules"}"
                 }
                 _uiState.value = _uiState.value.copy(agentStatusMessage = errorMessage)
                 delay(4000)

@@ -38,11 +38,17 @@ googleServices = "4.5.0"
 credentials = "1.6.0"
 googleid = "1.2.0"
 health-connect = "1.1.0"
-
+grpc = "1.62.2"
 
 [libraries]
 adk-core = { group = "com.google.adk", name = "google-adk-kotlin-core", version.ref = "adk" }
 adk-firebase-android = { group = "com.google.adk", name = "google-adk-kotlin-firebase-android", version.ref = "adk" }
+grpc-okhttp = { group = "io.grpc", name = "grpc-okhttp", version.ref = "grpc" }
+grpc-android = { group = "io.grpc", name = "grpc-android", version.ref = "grpc" }
+grpc-stub = { group = "io.grpc", name = "grpc-stub", version.ref = "grpc" }
+grpc-api = { group = "io.grpc", name = "grpc-api", version.ref = "grpc" }
+grpc-protobuf-lite = { group = "io.grpc", name = "grpc-protobuf-lite", version.ref = "grpc" }
+grpc-context = { group = "io.grpc", name = "grpc-context", version.ref = "grpc" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

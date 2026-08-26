@@ -68,6 +68,15 @@ android {
     includeInApk = false
     includeInBundle = true
   }
+  configurations.all {
+    resolutionStrategy.force("io.grpc:grpc-core:1.62.2")
+    resolutionStrategy.force("io.grpc:grpc-okhttp:1.62.2")
+    resolutionStrategy.force("io.grpc:grpc-stub:1.62.2")
+    resolutionStrategy.force("io.grpc:grpc-android:1.62.2")
+    resolutionStrategy.force("io.grpc:grpc-api:1.62.2")
+    resolutionStrategy.force("io.grpc:grpc-protobuf-lite:1.62.2")
+    resolutionStrategy.force("io.grpc:grpc-context:1.62.2")
+  }
 }
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
@@ -75,6 +84,10 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 dependencies {
   implementation(libs.adk.core)
   implementation(libs.adk.firebase.android)
+  implementation("io.grpc:grpc-okhttp:1.62.2")
+  implementation("io.grpc:grpc-android:1.62.2")
+  implementation("io.grpc:grpc-protobuf-lite:1.62.2")
+  implementation("io.grpc:grpc-stub:1.62.2")
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
   implementation(libs.androidx.activity.compose)
