@@ -487,15 +487,15 @@ class DailyCheckInAgent(
 
     private fun generateLocalCheckInResponse(pulse: DailyPulseData): String = when {
         pulse.isOffDay ->
-            "I hear you—today feels off. Would one low-effort idea help?"
+            "I hear you—today's feeling a bit off. Want one low-effort idea?"
         pulse.texture == DailyTexture.HEAVY ->
-            "I hear heavy. Would one small idea help?"
+            "Sounds heavy. Want one small idea to help?"
         pulse.texture == DailyTexture.STEADY ->
-            "Steady makes sense. That's enough for today."
+            "Steady's good. That's plenty for today."
         pulse.texture == DailyTexture.BRIGHT ->
-            "Bright—there's a little more room in today."
+            "Bright—it's nice there's some extra room in today."
         else ->
-            "I have your check-in without forcing a label. That's enough for today."
+            "I've got your check-in. That's enough for today."
     }
 
     private fun generateCareIdea(currentPulse: DailyPulseData?): String = when (currentPulse?.texture) {

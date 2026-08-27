@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -197,6 +198,19 @@ fun WisteriaMainApp(
     val uiState by viewModel.uiState.collectAsState()
     Log.d("Wisteria", "WisteriaMainApp: isFullScreenTakeoverActive=${uiState.isFullScreenTakeoverActive}")
     val voiceState by viewModel.voiceState.collectAsState()
+
+    // Replace Snackbars with Toasts for a cleaner UI
+    LaunchedEffect(uiState.agentStatusMessage) {
+        val msg = uiState.agentStatusMessage
+        val ignored = listOf(
+            "Ready for a check-in",
+            "Understanding this turn…",
+            "Understanding what you need…"
+        )
+        if (msg.isNotEmpty() && !ignored.contains(msg)) {
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+        }
+    }
     
     val isDark = when (uiState.themeMode) {
         ThemeMode.AUTO -> isSystemInDarkTheme()
@@ -595,41 +609,6 @@ fun WisteriaMainApp(
                                 ),
                                 modifier = Modifier.testTag("tab_${tab.name.lowercase()}")
                             )
-                        }
-                    }
-                },
-                snackbarHost = {
-                    if (uiState.agentStatusMessage.isNotEmpty() && uiState.agentStatusMessage != "Ready for a check-in") {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                                .clickable { viewModel.setStatusMessage("Ready for a check-in") },
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.inverseSurface,
-                            tonalElevation = 4.dp
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = if (uiState.agentStatusMessage.contains("failed", ignoreCase = true) || 
-                                                     uiState.agentStatusMessage.contains("error", ignoreCase = true)) 
-                                                     Icons.Default.Info else Icons.Default.CalendarMonth,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.inverseOnSurface,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = uiState.agentStatusMessage,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                )
-                            }
                         }
                     }
                 }
