@@ -627,7 +627,7 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
         _uiState.value = _uiState.value.copy(
             messages = listOf(initialAgentMessage),
             agentState = AgentExecutionState.IDLE,
-            agentStatusMessage = "Ready for check-in"
+            agentStatusMessage = "Ready for a check-in"
         )
     }
 

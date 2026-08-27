@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.*
@@ -551,6 +553,17 @@ fun WisteriaMainApp(
                                             color = badgeColor,
                                             fontSize = 10.sp
                                         )
+                                    )
+                                }
+                            }
+
+                            if (currentTab == WisteriaTab.DAILY_PULSE) {
+                                IconButton(onClick = { viewModel.resetConversation() }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "New Conversation",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
