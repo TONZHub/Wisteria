@@ -61,6 +61,7 @@ import com.example.ui.viewmodel.ThemeMode
 import com.example.domain.export.CheckInExportFormatter
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class WisteriaTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
@@ -197,6 +198,20 @@ fun WisteriaMainApp(
     val uiState by viewModel.uiState.collectAsState()
     Log.d("Wisteria", "WisteriaMainApp: isFullScreenTakeoverActive=${uiState.isFullScreenTakeoverActive}")
     val voiceState by viewModel.voiceState.collectAsState()
+
+    // Status banners are informational, not modal. Let completed/error messages clear on their
+    // own so they do not block screenshots or require a mystery tap. While the agent is actively
+    // working, keep its progress status visible; changing status cancels and restarts this timer.
+    LaunchedEffect(uiState.agentStatusMessage, uiState.isAgentActive) {
+        if (
+            !uiState.isAgentActive &&
+            uiState.agentStatusMessage.isNotEmpty() &&
+            uiState.agentStatusMessage != "Ready for a check-in"
+        ) {
+            delay(4_000L)
+            viewModel.setStatusMessage("Ready for a check-in")
+        }
+    }
     
     val isDark = when (uiState.themeMode) {
         ThemeMode.AUTO -> isSystemInDarkTheme()
