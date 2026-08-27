@@ -201,7 +201,11 @@ class AgentTurnRouter {
             "no thanks",
             "no thank you"
         )
-        return normalized in exactEndings
+        val reportedEnding = normalized
+            .takeIf { it.startsWith("i said ") }
+            ?.removePrefix("i said ")
+
+        return normalized in exactEndings || reportedEnding?.let(exactEndings::contains) == true
     }
 
     private fun decision(

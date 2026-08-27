@@ -54,6 +54,18 @@ class AgentTurnRouterTest {
             AgentTurnIntent.END_SESSION,
             router.route("That’s all.", activeSession).intent
         )
+        assertEquals(
+            AgentTurnIntent.END_SESSION,
+            router.route("I said I'm done", activeSession).intent
+        )
+        assertEquals(
+            AgentTurnIntent.FOLLOW_UP,
+            router.route("I said I'm not done", activeSession).intent
+        )
+        assertEquals(
+            AgentTurnIntent.FOLLOW_UP,
+            router.route("I said I'm done with this thought", activeSession).intent
+        )
     }
 
     @Test
