@@ -344,7 +344,7 @@ class DailyCheckInAgentTest {
     }
 
     @Test
-    fun `im done closes an active voice-style conversation without repeating the prompt`() = runTest {
+    fun `reported im done closes an active voice conversation without repeating the prompt`() = runTest {
         val model = FakeCompanionModelService()
         val agent = buildAgent(model = model)
 
@@ -355,7 +355,7 @@ class DailyCheckInAgentTest {
             onToolExecuted = { }
         )
         val ending = agent.processUserTurn(
-            userPrompt = "I'm done",
+            userPrompt = "I said I'm done",
             conversationHistory = emptyList(),
             onStateChange = { _, _ -> },
             onToolExecuted = { }
