@@ -442,6 +442,15 @@ class DailyCheckInViewModel(application: Application) : AndroidViewModel(applica
                     latestPulse = newPulse,
                     isAgentActive = false
                 )
+
+                // If Gemini failed (indicated by thoughtTrace mentioning local fallback)
+                // and we are logged in, suggest checking App Check.
+                if (agentResponse.thoughtTrace?.contains("Local companion wording was used") == true &&
+                    _uiState.value.isUserLoggedIn
+                ) {
+                    setStatusMessage("Gemini fallback: Check App Check token registration.")
+                }
+
                 if (remembered != null) clearStatusAfter(completionStatus)
                 if (speakResponse) {
                     voiceController.onAgentResponse(

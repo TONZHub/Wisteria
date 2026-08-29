@@ -378,6 +378,7 @@ fun WisteriaMainApp(
                     onRunNightShift = { viewModel.runNightShift() },
                     onTriggerFirestoreSync = { viewModel.triggerFirestoreSync() },
                     onSignInWithGoogle = onSignInWithGoogle,
+                    onTriggerDemoTakeover = { viewModel.openFullScreenTakeover() },
                     modifier = Modifier.padding(innerPadding)
                 )
             }

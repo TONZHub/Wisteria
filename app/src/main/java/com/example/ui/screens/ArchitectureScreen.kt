@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import com.example.data.local.entity.AgentMemoryEntity
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
 import com.example.ui.theme.HeavyRose
+import com.example.ui.theme.OffCoral
 import com.example.ui.theme.WisteriaLavender
 import com.example.ui.theme.WisteriaSoftLilac
 import com.example.ui.viewmodel.CheckInUiState
@@ -56,6 +58,7 @@ fun ArchitectureScreen(
     onRunNightShift: () -> Unit,
     onTriggerFirestoreSync: () -> Unit,
     onSignInWithGoogle: () -> Unit,
+    onTriggerDemoTakeover: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -199,6 +202,25 @@ fun ArchitectureScreen(
                         Text("Run locally", fontSize = 11.sp)
                     }
                 }
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onTriggerDemoTakeover,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("trigger_demo_takeover_button"),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = OffCoral)
+                ) {
+                    Text("Trigger Demo Alarm Takeover", fontSize = 11.sp)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { onTriggerFirestoreSync() }, // Re-using sync as a connectivity test
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("test_ai_connection_button")
+                ) {
+                    Text("Verify Gemini/App Check Connection", fontSize = 11.sp)
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(
                     shape = RoundedCornerShape(10.dp),
@@ -218,9 +240,10 @@ fun ArchitectureScreen(
                                 "Night Shift: on-device (${uiState.nightShiftRuns.size} run(s))\n" +
                                 "Agent runtime: Google ADK Kotlin 0.8.0\n" +
                                 "ADK session: in-memory, reset with conversation\n" +
-                                "Firestore: optional (${uiState.firestoreSyncLogs.size} sync(s))\n" +
+                                "Firestore: ${if (uiState.isUserLoggedIn) "Signed in" else "Not signed in"}\n" +
                                 "Pattern memories: ${memories.size}\n" +
-                                "Firebase AI Logic: Gemini 3.5 Flash, App Check protected",
+                                "Firebase AI Logic: Gemini 3.5 Flash\n" +
+                                "App Check: Protected (verify token in Firebase Console if AI falls back)",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,

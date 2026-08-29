@@ -91,7 +91,13 @@ class FirebaseAdkCompanionModelService : CompanionModelService {
                 )
             }
         } catch (error: Exception) {
-            Log.e("WisteriaADK", "ADK/Firebase failure: ${error.message}", error)
+            val failureMsg = if (error.message?.contains("App Check", ignoreCase = true) == true) {
+                "Gemini unavailable: App Check token needs registration in Firebase Console."
+            } else {
+                "Gemini unavailable: ${error.message ?: "network error"}"
+            }
+            Log.e("WisteriaADK", "ADK/Firebase failure: $failureMsg", error)
+            // We return null to fallback to local wording, but the log helps us debug.
             null
         }
     }
