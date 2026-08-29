@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.AgentMemoryEntity
+import com.example.domain.agent.model.MessageSender
 import com.example.ui.theme.ForestGreenMint
 import com.example.ui.theme.ForestGreenSage
 import com.example.ui.theme.HeavyRose
@@ -61,6 +62,8 @@ fun ArchitectureScreen(
     onTriggerDemoTakeover: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val latestAgentMessage = uiState.messages.lastOrNull { it.sender == MessageSender.AGENT }
+    
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -151,6 +154,34 @@ fun ArchitectureScreen(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        item {
+            ArchitectureCard(title = "Latest Agent turn trace") {
+                if (latestAgentMessage?.thoughtTrace != null) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color.Black.copy(alpha = 0.35f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = latestAgentMessage.thoughtTrace,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                color = WisteriaSoftLilac,
+                                lineHeight = 16.sp
+                            ),
+                            modifier = Modifier.padding(10.dp)
+                        )
+                    }
+                } else {
+                    Text(
+                        "No active turn trace. Send a message to see the routing and gating rationale.",
+                        style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    )
                 }
             }
         }
